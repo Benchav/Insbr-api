@@ -7,6 +7,7 @@ import { swaggerSpec } from './config/swagger.js';
 import { ProductRepositoryImpl } from './infrastructure/memory/repositories/product.repository.impl.js';
 import { StockRepositoryImpl } from './infrastructure/memory/repositories/stock.repository.impl.js';
 import { CustomerRepositoryImpl } from './infrastructure/memory/repositories/customer.repository.impl.js';
+import { SupplierRepositoryImpl } from './infrastructure/memory/repositories/supplier.repository.impl.js';
 import { CreditAccountRepositoryImpl, CreditPaymentRepositoryImpl } from './infrastructure/memory/repositories/credit-account.repository.impl.js';
 import { SaleRepositoryImpl } from './infrastructure/memory/repositories/sale.repository.impl.js';
 import { PurchaseRepositoryImpl } from './infrastructure/memory/repositories/purchase.repository.impl.js';
@@ -24,10 +25,12 @@ import { TransferService } from './application/services/transfer.service.js';
 // Controllers & Middleware
 import { createProductController } from './api/controllers/product.controller.js';
 import { createSaleController } from './api/controllers/sale.controller.js';
+import { createPurchaseController } from './api/controllers/purchase.controller.js';
+import { createCreditController } from './api/controllers/credit.controller.js';
 import { createTransferController } from './api/controllers/transfer.controller.js';
 import { loginController } from './infrastructure/web/middlewares/auth.middleware.js';
 
-// Mock de BranchRepo para TransferService
+// Mock de BranchRepo
 class BranchRepoMock {
   async findById(id: string) { return storage.branches.get(id) || null; }
 }
@@ -37,10 +40,11 @@ export function createApp(): Express {
   app.use(cors());
   app.use(express.json());
 
-  // Inicializar Repositorios
+  // 1. Inicializar Repositorios
   const productRepository = new ProductRepositoryImpl();
   const stockRepository = new StockRepositoryImpl();
   const customerRepository = new CustomerRepositoryImpl();
+  const supplierRepository = new SupplierRepositoryImpl();
   const creditAccountRepository = new CreditAccountRepositoryImpl();
   const creditPaymentRepository = new CreditPaymentRepositoryImpl();
   const saleRepository = new SaleRepositoryImpl();
@@ -49,8 +53,9 @@ export function createApp(): Express {
   const transferRepository = new TransferRepositoryImpl();
   const branchRepository = new BranchRepoMock();
 
-  // Inicializar Servicios
+  // 2. Inicializar Servicios
   const productService = new ProductService(productRepository);
+
   const saleService = new SaleService(
     saleRepository,
     stockRepository,
@@ -59,6 +64,22 @@ export function createApp(): Express {
     cashMovementRepository,
     productRepository
   );
+
+  const purchaseService = new PurchaseService(
+    purchaseRepository,
+    stockRepository,
+    supplierRepository,
+    creditAccountRepository,
+    cashMovementRepository
+  );
+
+  const creditService = new CreditService(
+    creditAccountRepository,
+    creditPaymentRepository,
+    cashMovementRepository,
+    customerRepository
+  );
+
   const transferService = new TransferService(
     transferRepository,
     stockRepository,
@@ -66,14 +87,18 @@ export function createApp(): Express {
     productRepository
   );
 
-  // Rutas
-  app.get('/health', (req, res) => res.json({ status: 'ok' }));
+  // 3. Rutas
+  app.get('/health', (req, res) => res.json({ status: 'ok', system: 'ERP Insumos' }));
   app.post('/api/auth/login', loginController);
 
+  // Endpoints protegidos
   app.use('/api/products', createProductController(productService));
   app.use('/api/sales', createSaleController(saleService));
+  app.use('/api/purchases', createPurchaseController(purchaseService));
+  app.use('/api/credits', createCreditController(creditService));
   app.use('/api/transfers', createTransferController(transferService));
 
+  // Swagger Documentation
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
   return app;
