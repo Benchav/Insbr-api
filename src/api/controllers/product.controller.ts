@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { ProductService } from '../../application/services/product.service.js';
 
 // Esquemas de validación con Zod
-const createProductSchema = z.object({
+// Esquema base sin refinamientos
+const baseProductSchema = z.object({
     name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres'),
     description: z.string(),
     sku: z.string().min(3, 'El SKU debe tener al menos 3 caracteres'),
@@ -13,7 +14,10 @@ const createProductSchema = z.object({
     wholesalePrice: z.number().int().positive('El precio al por mayor debe ser positivo'),
     unit: z.string(),
     isActive: z.boolean().default(true)
-}).refine(
+});
+
+// Esquema para crear productos con refinamientos
+const createProductSchema = baseProductSchema.refine(
     (data) => data.retailPrice >= data.costPrice,
     {
         message: 'El precio al detalle no puede ser menor al costo',
@@ -27,7 +31,8 @@ const createProductSchema = z.object({
     }
 );
 
-const updateProductSchema = createProductSchema.partial().refine(
+// Esquema para actualizar productos - aplicar .partial() ANTES de los refinamientos
+const updateProductSchema = baseProductSchema.partial().refine(
     (data) => {
         // Solo validar si ambos campos están presentes
         if (data.retailPrice !== undefined && data.costPrice !== undefined) {
