@@ -1,0 +1,98 @@
+import { IPurchaseRepository } from '../../core/interfaces/purchase.repository.js';
+import { IStockRepository } from '../../core/interfaces/stock.repository.js';
+import { ISupplierRepository } from '../../core/interfaces/supplier.repository.js';
+import { ICreditAccountRepository } from '../../core/interfaces/credit-account.repository.js';
+import { ICashMovementRepository } from '../../core/interfaces/cash-movement.repository.js';
+import { CreatePurchaseDto, Purchase } from '../../core/entities/purchase.entity.js';
+import { CreateCreditAccountDto } from '../../core/entities/credit-account.entity.js';
+import { CreateCashMovementDto } from '../../core/entities/cash-movement.entity.js';
+
+export class PurchaseService {
+    constructor(
+        private purchaseRepository: IPurchaseRepository,
+        private stockRepository: IStockRepository,
+        private supplierRepository: ISupplierRepository,
+        private creditAccountRepository: ICreditAccountRepository,
+        private cashMovementRepository: ICashMovementRepository
+    ) { }
+
+    async createPurchase(data: CreatePurchaseDto): Promise<Purchase> {
+        // 1. Validar que el proveedor exista
+        const supplier = await this.supplierRepository.findById(data.supplierId);
+        if (!supplier) {
+            throw new Error('Proveedor no encontrado');
+        }
+
+        // 2. Crear la compra
+        const purchase = await this.purchaseRepository.create(data);
+
+        // 3. Actualizar stock (entrada de mercadería)
+        for (const item of data.items) {
+            const stock = await this.stockRepository.findByProductAndBranch(item.productId, data.branchId);
+
+            if (stock) {
+                // Actualizar stock existente
+                await this.stockRepository.updateQuantity(stock.id, stock.quantity + item.quantity);
+            } else {
+                // Crear nuevo registro de stock
+                await this.stockRepository.create({
+                    productId: item.productId,
+                    branchId: data.branchId,
+                    quantity: item.quantity,
+                    minStock: 10,
+                    maxStock: 1000
+                });
+            }
+        }
+
+        // 4. Si es compra a crédito, crear cuenta por pagar (CPP)
+        if (data.type === 'CREDIT') {
+            const dueDate = new Date();
+            dueDate.setDate(dueDate.getDate() + supplier.creditDays);
+
+            const creditAccountData: CreateCreditAccountDto = {
+                type: 'CPP',
+                branchId: data.branchId,
+                supplierId: data.supplierId,
+                purchaseId: purchase.id,
+                totalAmount: data.total,
+                dueDate
+            };
+
+            await this.creditAccountRepository.create(creditAccountData);
+        }
+
+        // 5. Si es compra de contado, registrar movimiento de caja
+        if (data.type === 'CASH') {
+            const cashMovementData: CreateCashMovementDto = {
+                branchId: data.branchId,
+                type: 'EXPENSE',
+                category: 'PURCHASE',
+                amount: data.total,
+                purchaseId: purchase.id,
+                paymentMethod: data.paymentMethod || 'CASH',
+                description: `Compra ${purchase.id} - ${supplier.name}`,
+                createdBy: data.createdBy
+            };
+
+            await this.cashMovementRepository.create(cashMovementData);
+        }
+
+        return purchase;
+    }
+
+    async getPurchase(id: string): Promise<Purchase> {
+        const purchase = await this.purchaseRepository.findById(id);
+        if (!purchase) {
+            throw new Error('Compra no encontrada');
+        }
+        return purchase;
+    }
+
+    async listPurchasesByBranch(
+        branchId: string,
+        filters?: { startDate?: Date; endDate?: Date; supplierId?: string }
+    ): Promise<Purchase[]> {
+        return this.purchaseRepository.findByBranch(branchId, filters);
+    }
+}
