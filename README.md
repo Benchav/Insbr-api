@@ -2,7 +2,7 @@
 
 API profesional para distribución de insumos con soporte multisucursal (Diriamba y Jinotepe).
 
-## 🚀 Características
+##  Características
 
 - ✅ **Arquitectura limpia** con separación de capas (Core, Application, Infrastructure, API)
 - ✅ **Aislamiento multisucursal** - Datos aislados por sucursal
@@ -12,12 +12,12 @@ API profesional para distribución de insumos con soporte multisucursal (Diriamb
 - ✅ **Validación robusta** - Zod schemas
 - ✅ **TypeScript** - Type-safe con ESM
 
-## 📋 Requisitos
+##  Requisitos
 
 - Node.js 20+
 - npm o pnpm
 
-## 🛠️ Instalación
+##  Instalación
 
 ```bash
 # Clonar el repositorio
@@ -28,7 +28,7 @@ cd insbr-api
 npm install
 ```
 
-## 🏃 Ejecución
+##  Ejecución
 
 ### Modo desarrollo
 ```bash
@@ -46,7 +46,7 @@ npm start
 npm run lint
 ```
 
-## 📚 Documentación
+##  Documentación
 
 Una vez iniciado el servidor, accede a:
 
@@ -54,7 +54,7 @@ Una vez iniciado el servidor, accede a:
 - **Health Check:** http://localhost:3000/health
 - **API Root:** http://localhost:3000
 
-## 🏗️ Arquitectura
+##  Arquitectura
 
 ```
 src/
@@ -76,7 +76,7 @@ src/
 └── server.ts             # Entry point
 ```
 
-## 📊 Datos de Prueba
+##  Datos de Prueba
 
 Al iniciar el servidor, se cargan automáticamente:
 
@@ -85,7 +85,7 @@ Al iniciar el servidor, se cargan automáticamente:
 - **1 Proveedor:** Con deuda pendiente de C$ 3,000.00
 - **1 Cliente:** Con línea de crédito de C$ 500,000.00
 
-## 🔑 Reglas de Negocio
+##  Reglas de Negocio
 
 ### Aislamiento Multisucursal
 - Stock, ventas, compras y caja están aislados por `branchId`
@@ -110,7 +110,7 @@ Al iniciar el servidor, se cargan automáticamente:
 - Actualiza deuda del cliente
 - Permite abonos parciales
 
-## 🔌 API Endpoints
+##  API Endpoints
 
 ### Productos
 - `GET /api/products` - Listar productos
@@ -126,13 +126,13 @@ Al iniciar el servidor, se cargan automáticamente:
 - Transferencias (`/api/transfers`)
 - Stock (`/api/stock`)
 
-## 🧪 Testing
+##  Testing
 
 ```bash
 npm test
 ```
 
-## 📝 Próximos Pasos
+##  Próximos Pasos
 
 1. Implementar controladores faltantes (Sales, Purchases, Credit, Transfers)
 2. Agregar autenticación JWT
@@ -140,10 +140,10 @@ npm test
 4. Agregar reportes (balance de caja, ventas, compras)
 5. Migrar a base de datos (PostgreSQL/MySQL)
 
-## 👨‍💻 Autor
+##  Autor
 
 Joshua Chávez
 
-## 📄 Licencia
+##  Licencia
 
 ISC
