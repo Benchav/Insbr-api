@@ -13,9 +13,45 @@ const createProductSchema = z.object({
     wholesalePrice: z.number().int().positive('El precio al por mayor debe ser positivo'),
     unit: z.string(),
     isActive: z.boolean().default(true)
-});
+}).refine(
+    (data) => data.retailPrice >= data.costPrice,
+    {
+        message: 'El precio al detalle no puede ser menor al costo',
+        path: ['retailPrice']
+    }
+).refine(
+    (data) => data.wholesalePrice >= data.costPrice,
+    {
+        message: 'El precio al por mayor no puede ser menor al costo',
+        path: ['wholesalePrice']
+    }
+);
 
-const updateProductSchema = createProductSchema.partial();
+const updateProductSchema = createProductSchema.partial().refine(
+    (data) => {
+        // Solo validar si ambos campos están presentes
+        if (data.retailPrice !== undefined && data.costPrice !== undefined) {
+            return data.retailPrice >= data.costPrice;
+        }
+        return true;
+    },
+    {
+        message: 'El precio al detalle no puede ser menor al costo',
+        path: ['retailPrice']
+    }
+).refine(
+    (data) => {
+        // Solo validar si ambos campos están presentes
+        if (data.wholesalePrice !== undefined && data.costPrice !== undefined) {
+            return data.wholesalePrice >= data.costPrice;
+        }
+        return true;
+    },
+    {
+        message: 'El precio al por mayor no puede ser menor al costo',
+        path: ['wholesalePrice']
+    }
+);
 
 export function createProductController(productService: ProductService): Router {
     const router = Router();
@@ -52,11 +88,12 @@ export function createProductController(productService: ProductService): Router 
             const filters: any = {};
 
             if (req.query.isActive !== undefined) {
-                filters.isActive = req.query.isActive === 'true';
+                const isActiveValue = Array.isArray(req.query.isActive) ? req.query.isActive[0] : req.query.isActive;
+                filters.isActive = isActiveValue === 'true';
             }
 
             if (req.query.category) {
-                filters.category = req.query.category as string;
+                filters.category = Array.isArray(req.query.category) ? req.query.category[0] : req.query.category;
             }
 
             const products = await productService.listProducts(filters);
@@ -96,7 +133,8 @@ export function createProductController(productService: ProductService): Router 
      */
     router.get('/:id', async (req: Request, res: Response) => {
         try {
-            const product = await productService.getProduct(req.params.id);
+            const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+            const product = await productService.getProduct(id);
             res.json(product);
         } catch (error: any) {
             res.status(404).json({ error: error.message });
@@ -168,7 +206,7 @@ export function createProductController(productService: ProductService): Router 
             res.status(201).json(product);
         } catch (error: any) {
             if (error instanceof z.ZodError) {
-                res.status(400).json({ error: error.errors });
+                res.status(400).json({ error: error.issues });
             } else {
                 res.status(400).json({ error: error.message });
             }
@@ -228,14 +266,17 @@ export function createProductController(productService: ProductService): Router 
      */
     router.put('/:id', async (req: Request, res: Response) => {
         try {
+            const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
             const data = updateProductSchema.parse(req.body);
-            const product = await productService.updateProduct(req.params.id, data);
+            const product = await productService.updateProduct(id, data);
             res.json(product);
         } catch (error: any) {
             if (error instanceof z.ZodError) {
-                res.status(400).json({ error: error.errors });
-            } else {
+                res.status(400).json({ error: error.issues });
+            } else if (error.message.includes('no encontrado')) {
                 res.status(404).json({ error: error.message });
+            } else {
+                res.status(400).json({ error: error.message });
             }
         }
     });
@@ -262,7 +303,8 @@ export function createProductController(productService: ProductService): Router 
      */
     router.delete('/:id', async (req: Request, res: Response) => {
         try {
-            await productService.deleteProduct(req.params.id);
+            const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+            await productService.deleteProduct(id);
             res.status(204).send();
         } catch (error: any) {
             res.status(404).json({ error: error.message });

@@ -1,7 +1,7 @@
 import { ICreditAccountRepository, ICreditPaymentRepository } from '../../core/interfaces/credit-account.repository.js';
 import { ICashMovementRepository } from '../../core/interfaces/cash-movement.repository.js';
 import { ICustomerRepository } from '../../core/interfaces/customer.repository.js';
-import { CreditAccount, CreditPayment, CreateCreditPaymentDto } from '../../core/entities/credit-account.entity.js';
+import { CreditAccount, CreditPayment, CreateCreditPaymentDto, CreditAccountStatus } from '../../core/entities/credit-account.entity.js';
 import { CreateCashMovementDto } from '../../core/entities/cash-movement.entity.js';
 
 export class CreditService {
@@ -42,7 +42,7 @@ export class CreditService {
         const newPaidAmount = creditAccount.paidAmount + paymentData.amount;
         const newBalanceAmount = creditAccount.totalAmount - newPaidAmount;
 
-        let newStatus = creditAccount.status;
+        let newStatus: CreditAccountStatus = creditAccount.status;
         if (newBalanceAmount === 0) {
             newStatus = 'PAGADO';
         } else if (newPaidAmount > 0) {
