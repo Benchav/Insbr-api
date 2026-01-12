@@ -1,4 +1,4 @@
-import express, { Express, Request, Response, NextFunction } from 'express';
+import express, { Express } from 'express';
 import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './config/swagger.js';
@@ -12,6 +12,7 @@ import { SaleRepositoryImpl } from './infrastructure/memory/repositories/sale.re
 import { PurchaseRepositoryImpl } from './infrastructure/memory/repositories/purchase.repository.impl.js';
 import { CashMovementRepositoryImpl } from './infrastructure/memory/repositories/cash-movement.repository.impl.js';
 import { TransferRepositoryImpl } from './infrastructure/memory/repositories/transfer.repository.impl.js';
+import { storage } from './infrastructure/memory/storage.js';
 
 // Services
 import { ProductService } from './application/services/product.service.js';
@@ -20,24 +21,23 @@ import { PurchaseService } from './application/services/purchase.service.js';
 import { CreditService } from './application/services/credit.service.js';
 import { TransferService } from './application/services/transfer.service.js';
 
-// Controllers
+// Controllers & Middleware
 import { createProductController } from './api/controllers/product.controller.js';
+import { createSaleController } from './api/controllers/sale.controller.js';
+import { createTransferController } from './api/controllers/transfer.controller.js';
+import { loginController } from './infrastructure/web/middlewares/auth.middleware.js';
+
+// Mock de BranchRepo para TransferService
+class BranchRepoMock {
+  async findById(id: string) { return storage.branches.get(id) || null; }
+}
 
 export function createApp(): Express {
   const app = express();
-
-  // Middlewares
   app.use(cors());
   app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
 
-  // Request logging middleware
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-    next();
-  });
-
-  // Initialize repositories
+  // Inicializar Repositorios
   const productRepository = new ProductRepositoryImpl();
   const stockRepository = new StockRepositoryImpl();
   const customerRepository = new CustomerRepositoryImpl();
@@ -47,10 +47,10 @@ export function createApp(): Express {
   const purchaseRepository = new PurchaseRepositoryImpl();
   const cashMovementRepository = new CashMovementRepositoryImpl();
   const transferRepository = new TransferRepositoryImpl();
+  const branchRepository = new BranchRepoMock();
 
-  // Initialize services
+  // Inicializar Servicios
   const productService = new ProductService(productRepository);
-
   const saleService = new SaleService(
     saleRepository,
     stockRepository,
@@ -59,73 +59,22 @@ export function createApp(): Express {
     cashMovementRepository,
     productRepository
   );
-
-  const purchaseService = new PurchaseService(
-    purchaseRepository,
-    stockRepository,
-    {} as any, // supplierRepository - to be implemented
-    creditAccountRepository,
-    cashMovementRepository
-  );
-
-  const creditService = new CreditService(
-    creditAccountRepository,
-    creditPaymentRepository,
-    cashMovementRepository,
-    customerRepository
-  );
-
   const transferService = new TransferService(
     transferRepository,
     stockRepository,
-    {} as any, // branchRepository - to be implemented
+    branchRepository as any,
     productRepository
   );
 
-  // API Routes
+  // Rutas
+  app.get('/health', (req, res) => res.json({ status: 'ok' }));
+  app.post('/api/auth/login', loginController);
+
   app.use('/api/products', createProductController(productService));
+  app.use('/api/sales', createSaleController(saleService));
+  app.use('/api/transfers', createTransferController(transferService));
 
-  // TODO: Add more controllers
-  // app.use('/api/sales', createSaleController(saleService));
-  // app.use('/api/purchases', createPurchaseController(purchaseService));
-  // app.use('/api/credit', createCreditController(creditService));
-  // app.use('/api/transfers', createTransferController(transferService));
-
-  // Swagger documentation
-  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-    customCss: '.swagger-ui .topbar { display: none }',
-    customSiteTitle: 'ERP Insumos API Docs'
-  }));
-
-  // Health check
-  app.get('/health', (req: Request, res: Response) => {
-    res.json({
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      service: 'ERP Insumos API'
-    });
-  });
-
-  // Root endpoint
-  app.get('/', (req: Request, res: Response) => {
-    res.json({
-      message: 'ERP Insumos API - Sucursales Diriamba y Jinotepe',
-      version: '1.0.0',
-      documentation: '/api-docs',
-      health: '/health'
-    });
-  });
-
-  // 404 handler
-  app.use((req: Request, res: Response) => {
-    res.status(404).json({ error: 'Endpoint no encontrado' });
-  });
-
-  // Error handler
-  app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-    console.error('Error:', err);
-    res.status(500).json({ error: 'Error interno del servidor' });
-  });
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
   return app;
 }
