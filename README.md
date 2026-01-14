@@ -21,7 +21,7 @@ API profesional para distribución de insumos con soporte multisucursal (Diriamb
 
 ```bash
 # Clonar el repositorio
-git clone <repo-url>
+git clone https://github.com/Benchav/Insbr-api.git
 cd insbr-api
 
 # Instalar dependencias
