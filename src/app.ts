@@ -21,6 +21,8 @@ import { SaleService } from './application/services/sale.service.js';
 import { PurchaseService } from './application/services/purchase.service.js';
 import { CreditService } from './application/services/credit.service.js';
 import { TransferService } from './application/services/transfer.service.js';
+import { PdfService } from './infrastructure/reports/pdf.service.js';
+import { ExcelService } from './infrastructure/reports/excel.service.js';
 
 // Controllers & Middleware
 import { createProductController } from './api/controllers/product.controller.js';
@@ -28,6 +30,7 @@ import { createSaleController } from './api/controllers/sale.controller.js';
 import { createPurchaseController } from './api/controllers/purchase.controller.js';
 import { createCreditController } from './api/controllers/credit.controller.js';
 import { createTransferController } from './api/controllers/transfer.controller.js';
+import { createReportController } from './api/controllers/report.controller.js';
 import { loginController } from './infrastructure/web/middlewares/auth.middleware.js';
 
 // Mock de BranchRepo
@@ -87,6 +90,9 @@ export function createApp(): Express {
     productRepository
   );
 
+  const pdfService = new PdfService();
+  const excelService = new ExcelService(productRepository);
+
   // 3. Rutas
   app.get('/health', (req, res) => res.json({ status: 'ok', system: 'ERP Insumos' }));
   app.post('/api/auth/login', loginController);
@@ -97,6 +103,7 @@ export function createApp(): Express {
   app.use('/api/purchases', createPurchaseController(purchaseService));
   app.use('/api/credits', createCreditController(creditService));
   app.use('/api/transfers', createTransferController(transferService));
+  app.use('/api/reports', createReportController(saleService, pdfService, excelService, branchRepository, cashMovementRepository));
 
   // Swagger Documentation
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
