@@ -8,7 +8,7 @@ API profesional para distribución de insumos con soporte multisucursal (Diriamb
 -  **Aislamiento multisucursal** - Datos aislados por sucursal
 -  **Gestión de crédito doble** - CPP (Cuentas por Pagar) y CXC (Cuentas por Cobrar)
 -  **Precisión financiera** - Montos en centavos (enteros)
--  **Documentación Swagger** - OpenAPI 3.0
+-  **Documentación Swagger** 
 -  **Validación robusta** - Zod schemas
 -  **TypeScript** - Type-safe con ESM
 
