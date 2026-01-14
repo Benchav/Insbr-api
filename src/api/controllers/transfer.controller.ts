@@ -1,7 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { TransferService } from '../../application/services/transfer.service.js';
-import { authMiddleware } from '../../infrastructure/web/middlewares/auth.middleware.js';
 
 const createTransferSchema = z.object({
     toBranchId: z.string(),
@@ -14,7 +13,7 @@ const createTransferSchema = z.object({
 
 export function createTransferController(transferService: TransferService): Router {
     const router = Router();
-    router.use(authMiddleware);
+    // Note: authenticate and authorize middlewares are applied at app.ts level
 
     /**
      * @swagger

@@ -8,6 +8,7 @@ import { Sale } from '../../core/entities/sale.entity.js';
 import { Purchase } from '../../core/entities/purchase.entity.js';
 import { CashMovement } from '../../core/entities/cash-movement.entity.js';
 import { Transfer } from '../../core/entities/transfer.entity.js';
+import { User } from '../../core/entities/user.entity.js';
 
 /**
  * Almacenamiento en memoria usando Maps
@@ -18,6 +19,7 @@ export class MemoryStorage {
     public branches = new Map<string, Branch>();
     public suppliers = new Map<string, Supplier>();
     public customers = new Map<string, Customer>();
+    public users = new Map<string, User>();
 
     // Datos por sucursal
     public stock = new Map<string, Stock>();
@@ -36,6 +38,7 @@ export class MemoryStorage {
         this.branches.clear();
         this.suppliers.clear();
         this.customers.clear();
+        this.users.clear();
         this.stock.clear();
         this.sales.clear();
         this.purchases.clear();

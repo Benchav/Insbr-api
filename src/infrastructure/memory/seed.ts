@@ -1,4 +1,5 @@
 import { storage } from './storage.js';
+import bcrypt from 'bcrypt';
 
 export async function seedData(): Promise<void> {
     console.log('🌱 Cargando datos iniciales...');
@@ -123,6 +124,58 @@ export async function seedData(): Promise<void> {
         updatedAt: new Date()
     };
     storage.customers.set(customer.id, customer);
+
+    // 6. Usuarios del Sistema (con passwords hasheados)
+    const passwordHash = await bcrypt.hash('123', 10); // Hash del password "123"
+
+    const users = [
+        {
+            id: 'USER-DIR-ADMIN',
+            username: 'admin_diriamba',
+            password: passwordHash,
+            name: 'Admin Diriamba',
+            role: 'ADMIN' as const,
+            branchId: diriamba.id,
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+        },
+        {
+            id: 'USER-DIR-SELLER',
+            username: 'cajero_diriamba',
+            password: passwordHash,
+            name: 'Cajero Diriamba',
+            role: 'SELLER' as const,
+            branchId: diriamba.id,
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+        },
+        {
+            id: 'USER-JIN-ADMIN',
+            username: 'admin_jinotepe',
+            password: passwordHash,
+            name: 'Admin Jinotepe',
+            role: 'ADMIN' as const,
+            branchId: jinotepe.id,
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+        },
+        {
+            id: 'USER-JIN-SELLER',
+            username: 'cajero_jinotepe',
+            password: passwordHash,
+            name: 'Cajero Jinotepe',
+            role: 'SELLER' as const,
+            branchId: jinotepe.id,
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+        }
+    ];
+
+    users.forEach(u => storage.users.set(u.id, u));
 
     console.log('✅ Datos de prueba (Seed) cargados exitosamente.');
 }

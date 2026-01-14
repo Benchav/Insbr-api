@@ -1,7 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { PurchaseService } from '../../application/services/purchase.service.js';
-import { authMiddleware } from '../../infrastructure/web/middlewares/auth.middleware.js';
 
 const createPurchaseSchema = z.object({
     supplierId: z.string(),
@@ -17,7 +16,7 @@ const createPurchaseSchema = z.object({
 
 export function createPurchaseController(purchaseService: PurchaseService): Router {
     const router = Router();
-    router.use(authMiddleware);
+    // Note: authenticate and authorize middlewares are applied at app.ts level
 
     /**
      * @swagger

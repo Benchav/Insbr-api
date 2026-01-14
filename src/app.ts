@@ -31,7 +31,10 @@ import { createPurchaseController } from './api/controllers/purchase.controller.
 import { createCreditController } from './api/controllers/credit.controller.js';
 import { createTransferController } from './api/controllers/transfer.controller.js';
 import { createReportController } from './api/controllers/report.controller.js';
-import { loginController } from './infrastructure/web/middlewares/auth.middleware.js';
+import { createAuthController } from './api/controllers/auth.controller.js';
+import { authenticate, authorize } from './infrastructure/web/middlewares/auth.middleware.js';
+import { UserRepositoryImpl } from './infrastructure/memory/repositories/user.repository.impl.js';
+import { AuthService } from './application/services/auth.service.js';
 
 // Mock de BranchRepo
 class BranchRepoMock {
@@ -55,6 +58,7 @@ export function createApp(): Express {
   const cashMovementRepository = new CashMovementRepositoryImpl();
   const transferRepository = new TransferRepositoryImpl();
   const branchRepository = new BranchRepoMock();
+  const userRepository = new UserRepositoryImpl();
 
   // 2. Inicializar Servicios
   const productService = new ProductService(productRepository);
@@ -92,18 +96,36 @@ export function createApp(): Express {
 
   const pdfService = new PdfService();
   const excelService = new ExcelService(productRepository);
+  const authService = new AuthService(userRepository);
 
   // 3. Rutas
   app.get('/health', (req, res) => res.json({ status: 'ok', system: 'ERP Insumos' }));
-  app.post('/api/auth/login', loginController);
 
-  // Endpoints protegidos
-  app.use('/api/products', createProductController(productService));
-  app.use('/api/sales', createSaleController(saleService));
-  app.use('/api/purchases', createPurchaseController(purchaseService));
-  app.use('/api/credits', createCreditController(creditService));
-  app.use('/api/transfers', createTransferController(transferService));
-  app.use('/api/reports', createReportController(saleService, pdfService, excelService, branchRepository, cashMovementRepository));
+  // ========== RUTAS DE AUTENTICACIÓN ==========
+  const authRouter = createAuthController(authService);
+  app.use('/api/auth', authRouter);
+
+  // ========== RUTAS PROTEGIDAS CON RBAC ==========
+
+  // Productos - ADMIN y SELLER pueden ver el catálogo
+  app.use('/api/products', authenticate, authorize(['ADMIN', 'SELLER']), createProductController(productService));
+
+  // Ventas - ADMIN y SELLER pueden vender
+  app.use('/api/sales', authenticate, authorize(['ADMIN', 'SELLER']), createSaleController(saleService));
+
+  // Reportes - Autenticación requerida, autorización granular dentro del controlador
+  // SELLER puede: imprimir tickets PDF
+  // ADMIN puede: todo (tickets + descargar Excel)
+  app.use('/api/reports', authenticate, createReportController(saleService, pdfService, excelService, branchRepository, cashMovementRepository));
+
+  // Compras - Solo ADMIN
+  app.use('/api/purchases', authenticate, authorize(['ADMIN']), createPurchaseController(purchaseService));
+
+  // Créditos - Solo ADMIN
+  app.use('/api/credits', authenticate, authorize(['ADMIN']), createCreditController(creditService));
+
+  // Transferencias - Solo ADMIN
+  app.use('/api/transfers', authenticate, authorize(['ADMIN']), createTransferController(transferService));
 
   // Swagger Documentation
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

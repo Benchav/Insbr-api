@@ -1,7 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { CreditService } from '../../application/services/credit.service.js';
-import { authMiddleware } from '../../infrastructure/web/middlewares/auth.middleware.js';
 
 const registerPaymentSchema = z.object({
     creditAccountId: z.string(),
@@ -13,7 +12,7 @@ const registerPaymentSchema = z.object({
 
 export function createCreditController(creditService: CreditService): Router {
     const router = Router();
-    router.use(authMiddleware);
+    // Note: authenticate and authorize middlewares are applied at app.ts level
 
     /**
      * @swagger

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { SaleService } from '../../application/services/sale.service.js';
 import { PdfService } from '../../infrastructure/reports/pdf.service.js';
 import { ExcelService } from '../../infrastructure/reports/excel.service.js';
-import { authMiddleware } from '../../infrastructure/web/middlewares/auth.middleware.js';
+import { authorize } from '../../infrastructure/web/middlewares/auth.middleware.js';
 
 // Interfaz simple para el repositorio de sucursales
 interface IBranchRepository {
@@ -23,7 +23,8 @@ export function createReportController(
     cashMovementRepository: ICashMovementRepository
 ): Router {
     const router = Router();
-    router.use(authMiddleware);
+    // Note: authenticate middleware will be applied at app.ts level
+    // Here we only apply authorize for specific roles
 
     /**
      * @swagger
@@ -55,7 +56,7 @@ export function createReportController(
      *       500:
      *         description: Error al generar el ticket
      */
-    router.get('/sales/:id/ticket', async (req: Request, res: Response) => {
+    router.get('/sales/:id/ticket', authorize(['ADMIN', 'SELLER']), async (req: Request, res: Response) => {
         try {
             if (!req.user) {
                 return res.status(401).json({ error: 'No autorizado' });
@@ -131,7 +132,7 @@ export function createReportController(
      *       500:
      *         description: Error al generar el reporte
      */
-    router.get('/sales/excel', async (req: Request, res: Response) => {
+    router.get('/sales/excel', authorize(['ADMIN']), async (req: Request, res: Response) => {
         try {
             if (!req.user) {
                 return res.status(401).json({ error: 'No autorizado' });
@@ -227,7 +228,7 @@ export function createReportController(
      *       500:
      *         description: Error al generar el reporte
      */
-    router.get('/cash/excel', async (req: Request, res: Response) => {
+    router.get('/cash/excel', authorize(['ADMIN']), async (req: Request, res: Response) => {
         try {
             if (!req.user) {
                 return res.status(401).json({ error: 'No autorizado' });
