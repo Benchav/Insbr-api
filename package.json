@@ -15,6 +15,7 @@
   "license": "ISC",
   "description": "API para distribución de insumos - Sucursales Diriamba y Jinotepe",
   "dependencies": {
+    "@libsql/client": "^0.17.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "csv-stringify": "^6.6.0",
