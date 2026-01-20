@@ -1,11 +1,7 @@
 import 'dotenv/config';
 import { tursoClient, testConnection } from './client.js';
 import { readFileSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { join } from 'path';
 
 /**
  * Ejecuta el esquema SQL en Turso
@@ -21,36 +17,16 @@ async function runMigration() {
     }
 
     try {
-        // Leer el archivo SQL desde src (no desde dist)
+        // Leer el archivo SQL desde src
         const schemaPath = join(process.cwd(), 'src', 'infrastructure', 'turso', 'schema.sql');
         const schema = readFileSync(schemaPath, 'utf-8');
 
-        // Dividir en statements individuales
-        const statements = schema
-            .split(';')
-            .map(s => s.trim())
-            .filter(s => s.length > 0 && !s.startsWith('--'));
+        console.log(`📝 Ejecutando esquema SQL...\n`);
 
-        console.log(`📝 Ejecutando ${statements.length} statements SQL...\n`);
+        // Ejecutar el esquema completo
+        await tursoClient.executeMultiple(schema);
 
-        // Ejecutar cada statement
-        for (let i = 0; i < statements.length; i++) {
-            const statement = statements[i];
-            try {
-                await tursoClient.execute(statement);
-
-                // Extraer nombre de tabla del statement para logging
-                const match = statement.match(/CREATE\s+(?:TABLE|INDEX)\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)/i);
-                if (match) {
-                    console.log(`✅ ${match[1]}`);
-                }
-            } catch (error: any) {
-                console.error(`❌ Error en statement ${i + 1}:`, error.message);
-                console.error('Statement:', statement.substring(0, 100) + '...');
-            }
-        }
-
-        console.log('\n✅ Migración completada exitosamente!');
+        console.log('\n✅ Esquema ejecutado exitosamente!');
         console.log('\n📊 Verificando tablas creadas...');
 
         // Verificar tablas creadas
