@@ -13,7 +13,8 @@ import { SaleRepositoryImpl } from './infrastructure/memory/repositories/sale.re
 import { PurchaseRepositoryImpl } from './infrastructure/memory/repositories/purchase.repository.impl.js';
 import { CashMovementRepositoryImpl } from './infrastructure/memory/repositories/cash-movement.repository.impl.js';
 import { TransferRepositoryImpl } from './infrastructure/memory/repositories/transfer.repository.impl.js';
-import { storage } from './infrastructure/memory/storage.js';
+import { UserRepositoryImpl } from './infrastructure/memory/repositories/user.repository.impl.js';
+import { BranchRepositoryImpl } from './infrastructure/memory/repositories/branch.repository.impl.js';
 
 // Services
 import { ProductService } from './application/services/product.service.js';
@@ -21,6 +22,9 @@ import { SaleService } from './application/services/sale.service.js';
 import { PurchaseService } from './application/services/purchase.service.js';
 import { CreditService } from './application/services/credit.service.js';
 import { TransferService } from './application/services/transfer.service.js';
+import { CashService } from './application/services/cash.service.js';
+import { StockService } from './application/services/stock.service.js';
+import { AuthService } from './application/services/auth.service.js';
 import { PdfService } from './infrastructure/reports/pdf.service.js';
 import { ExcelService } from './infrastructure/reports/excel.service.js';
 
@@ -32,14 +36,9 @@ import { createCreditController } from './api/controllers/credit.controller.js';
 import { createTransferController } from './api/controllers/transfer.controller.js';
 import { createReportController } from './api/controllers/report.controller.js';
 import { createAuthController } from './api/controllers/auth.controller.js';
+import { createCashController } from './api/controllers/cash.controller.js';
+import { createStockController } from './api/controllers/stock.controller.js';
 import { authenticate, authorize } from './infrastructure/web/middlewares/auth.middleware.js';
-import { UserRepositoryImpl } from './infrastructure/memory/repositories/user.repository.impl.js';
-import { AuthService } from './application/services/auth.service.js';
-
-// Mock de BranchRepo
-class BranchRepoMock {
-  async findById(id: string) { return storage.branches.get(id) || null; }
-}
 
 export function createApp(): Express {
   const app = express();
@@ -57,7 +56,7 @@ export function createApp(): Express {
   const purchaseRepository = new PurchaseRepositoryImpl();
   const cashMovementRepository = new CashMovementRepositoryImpl();
   const transferRepository = new TransferRepositoryImpl();
-  const branchRepository = new BranchRepoMock();
+  const branchRepository = new BranchRepositoryImpl();
   const userRepository = new UserRepositoryImpl();
 
   // 2. Inicializar Servicios
@@ -90,13 +89,15 @@ export function createApp(): Express {
   const transferService = new TransferService(
     transferRepository,
     stockRepository,
-    branchRepository as any,
+    branchRepository,
     productRepository
   );
 
+  const cashService = new CashService(cashMovementRepository);
+  const stockService = new StockService(stockRepository, productRepository);
+  const authService = new AuthService(userRepository);
   const pdfService = new PdfService();
   const excelService = new ExcelService(productRepository);
-  const authService = new AuthService(userRepository);
 
   // 3. Rutas
   app.get('/health', (req, res) => res.json({ status: 'ok', system: 'ERP Insumos' }));
@@ -126,6 +127,12 @@ export function createApp(): Express {
 
   // Transferencias - Solo ADMIN
   app.use('/api/transfers', authenticate, authorize(['ADMIN']), createTransferController(transferService));
+
+  // Caja - ADMIN y SELLER pueden consultar, solo ADMIN puede registrar movimientos manuales
+  app.use('/api/cash', authenticate, authorize(['ADMIN', 'SELLER']), createCashController(cashService));
+
+  // Stock - ADMIN y SELLER pueden consultar, solo ADMIN puede ajustar
+  app.use('/api/stock', authenticate, authorize(['ADMIN', 'SELLER']), createStockController(stockService));
 
   // Swagger Documentation
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

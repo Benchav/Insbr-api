@@ -104,14 +104,16 @@ const options: swaggerJsdoc.Options = {
             }
         ],
         tags: [
+            { name: 'Auth', description: 'Autenticación y gestión de usuarios' },
             { name: 'Products', description: 'Gestión de productos (catálogo compartido)' },
             { name: 'Branches', description: 'Gestión de sucursales' },
             { name: 'Stock', description: 'Gestión de inventario por sucursal' },
             { name: 'Sales', description: 'Gestión de ventas' },
             { name: 'Purchases', description: 'Gestión de compras' },
-            { name: 'Credit', description: 'Gestión de cuentas por cobrar y pagar' },
+            { name: 'Credits', description: 'Gestión de cuentas por cobrar y pagar' },
             { name: 'Transfers', description: 'Transferencias entre sucursales' },
-            { name: 'Cash', description: 'Movimientos de caja' }
+            { name: 'Cash', description: 'Movimientos de caja' },
+            { name: 'Reports', description: 'Reportes PDF y Excel' }
         ]
     },
     apis: ['./src/api/controllers/*.ts'] // Ruta a los controladores con JSDoc
