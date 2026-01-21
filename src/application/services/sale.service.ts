@@ -116,4 +116,109 @@ export class SaleService {
     ): Promise<Sale[]> {
         return this.saleRepository.findByBranch(branchId, filters);
     }
+
+    /**
+     * Cancela una venta y revierte todas las operaciones asociadas
+     * - Devuelve productos al inventario
+     * - Revierte movimiento de caja (si es contado)
+     * - Cancela cuenta por cobrar (si es crédito)
+     * - Actualiza deuda del cliente (si es crédito)
+     */
+    async cancelSale(saleId: string, userId: string): Promise<Sale> {
+        // 1. Obtener la venta
+        const sale = await this.saleRepository.findById(saleId);
+        if (!sale) {
+            throw new Error('Venta no encontrada');
+        }
+
+        // 2. Validar que la venta no esté ya cancelada
+        if (sale.status === 'CANCELLED') {
+            throw new Error('Esta venta ya está cancelada');
+        }
+
+        // 3. Validar que sea del día actual (solo se pueden cancelar ventas del día)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const saleDate = new Date(sale.createdAt);
+        saleDate.setHours(0, 0, 0, 0);
+
+        if (saleDate.getTime() !== today.getTime()) {
+            throw new Error('Solo se pueden cancelar ventas del día actual');
+        }
+
+        // 4. Revertir stock - devolver productos al inventario
+        for (const item of sale.items) {
+            const stock = await this.stockRepository.findByProductAndBranch(
+                item.productId,
+                sale.branchId
+            );
+
+            if (stock) {
+                await this.stockRepository.updateQuantity(
+                    stock.id,
+                    stock.quantity + item.quantity
+                );
+            } else {
+                // Si no existe el stock, crearlo
+                await this.stockRepository.create({
+                    productId: item.productId,
+                    branchId: sale.branchId,
+                    quantity: item.quantity,
+                    minStock: 10,
+                    maxStock: 1000
+                });
+            }
+        }
+
+        // 5. Si es venta de contado, revertir movimiento de caja
+        if (sale.type === 'CASH') {
+            // Crear movimiento de egreso para revertir el ingreso
+            const reversalMovement: CreateCashMovementDto = {
+                branchId: sale.branchId,
+                type: 'EXPENSE',
+                category: 'REFUND',
+                amount: sale.total,
+                saleId: sale.id,
+                paymentMethod: sale.paymentMethod || 'CASH',
+                description: `Cancelación de venta ${sale.id}`,
+                createdBy: userId
+            };
+
+            await this.cashMovementRepository.create(reversalMovement);
+        }
+
+        // 6. Si es venta a crédito, cancelar cuenta por cobrar
+        if (sale.type === 'CREDIT' && sale.customerId) {
+            // Buscar la cuenta por cobrar asociada
+            const creditAccounts = await this.creditAccountRepository.findByBranch(
+                sale.branchId,
+                { type: 'CXC' }
+            );
+
+            const creditAccount = creditAccounts.find(ca => ca.saleId === sale.id);
+
+            if (creditAccount) {
+                // Validar que no tenga pagos
+                if (creditAccount.paidAmount > 0) {
+                    throw new Error(
+                        'No se puede cancelar una venta a crédito que ya tiene pagos registrados. ' +
+                        `Monto pagado: C$${(creditAccount.paidAmount / 100).toFixed(2)}`
+                    );
+                }
+
+                // Eliminar la cuenta por cobrar
+                await this.creditAccountRepository.delete(creditAccount.id);
+
+                // Revertir deuda del cliente
+                await this.customerRepository.updateDebt(sale.customerId, -sale.total);
+            }
+        }
+
+        // 7. Actualizar estado de la venta a CANCELLED
+        const updatedSale = await this.saleRepository.update(sale.id, {
+            status: 'CANCELLED'
+        });
+
+        return updatedSale;
+    }
 }

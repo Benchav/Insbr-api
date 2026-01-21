@@ -103,4 +103,37 @@ export class CreditService {
     async getPaymentHistory(creditAccountId: string): Promise<CreditPayment[]> {
         return this.creditPaymentRepository.findByCreditAccount(creditAccountId);
     }
+
+    /**
+     * Cancela una cuenta de crédito que no tenga pagos registrados
+     * - Valida que no tenga pagos (paidAmount = 0)
+     * - Elimina la cuenta de crédito
+     * - Si es CXC, revierte la deuda del cliente
+     */
+    async cancelCreditAccount(creditAccountId: string): Promise<void> {
+        // 1. Obtener cuenta de crédito
+        const creditAccount = await this.creditAccountRepository.findById(creditAccountId);
+        if (!creditAccount) {
+            throw new Error('Cuenta de crédito no encontrada');
+        }
+
+        // 2. Validar que no tenga pagos registrados
+        if (creditAccount.paidAmount > 0) {
+            throw new Error(
+                'No se puede cancelar una cuenta de crédito que ya tiene pagos registrados. ' +
+                `Monto pagado: C$${(creditAccount.paidAmount / 100).toFixed(2)}`
+            );
+        }
+
+        // 3. Si es CXC (Cuenta por Cobrar), revertir deuda del cliente
+        if (creditAccount.type === 'CXC' && creditAccount.customerId) {
+            await this.customerRepository.updateDebt(
+                creditAccount.customerId,
+                -creditAccount.totalAmount
+            );
+        }
+
+        // 4. Eliminar la cuenta de crédito
+        await this.creditAccountRepository.delete(creditAccountId);
+    }
 }

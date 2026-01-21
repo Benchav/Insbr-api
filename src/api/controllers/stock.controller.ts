@@ -249,5 +249,71 @@ export function createStockController(stockService: StockService): Router {
         }
     });
 
+    /**
+     * @swagger
+     * /api/stock/adjust:
+     *   post:
+     *     summary: Ajustar stock manualmente
+     *     description: Permite ajustar la cantidad de stock de un producto con auditoría. Solo ADMIN.
+     *     tags: [Stock]
+     *     security:
+     *       - bearerAuth: []
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required:
+     *               - stockId
+     *               - newQuantity
+     *               - reason
+     *             properties:
+     *               stockId:
+     *                 type: string
+     *                 description: ID del registro de stock
+     *               newQuantity:
+     *                 type: integer
+     *                 minimum: 0
+     *                 description: Nueva cantidad de stock
+     *               reason:
+     *                 type: string
+     *                 description: Razón del ajuste (merma, corrección, etc.)
+     *     responses:
+     *       200:
+     *         description: Stock ajustado exitosamente
+     *       400:
+     *         description: Error de validación
+     *       401:
+     *         description: No autorizado
+     */
+    router.post('/adjust', async (req: Request, res: Response) => {
+        try {
+            if (!req.user) throw new Error('No autorizado');
+
+            const { stockId, newQuantity, reason } = req.body;
+
+            if (!stockId || newQuantity === undefined || !reason) {
+                return res.status(400).json({
+                    error: 'Faltan campos requeridos: stockId, newQuantity, reason'
+                });
+            }
+
+            const stock = await stockService.adjustStock(
+                stockId,
+                newQuantity,
+                reason,
+                req.user.userId
+            );
+
+            res.json({
+                message: 'Stock ajustado exitosamente',
+                stock
+            });
+        } catch (error: any) {
+            res.status(400).json({ error: error.message });
+        }
+    });
+
     return router;
 }

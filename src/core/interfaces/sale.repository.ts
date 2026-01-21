@@ -9,5 +9,6 @@ export interface ISaleRepository {
         customerId?: string;
     }): Promise<Sale[]>;
     findByCustomer(customerId: string): Promise<Sale[]>;
+    update(id: string, data: Partial<Sale>): Promise<Sale>;
     delete(id: string): Promise<void>;
 }

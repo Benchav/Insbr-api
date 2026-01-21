@@ -8,6 +8,7 @@ export type CashMovementCategory =
     | 'CREDIT_PAYMENT' // Abono a crédito
     | 'EXPENSE'        // Gasto operativo
     | 'TRANSFER'       // Transferencia entre cajas
+    | 'REFUND'         // Devolución/Cancelación
     | 'ADJUSTMENT';    // Ajuste
 
 export interface CashMovement {

@@ -139,5 +139,66 @@ export function createTransferController(transferService: TransferService): Rout
         }
     });
 
+    /**
+     * @swagger
+     * /api/transfers/{id}:
+     *   delete:
+     *     summary: Cancelar transferencia
+     *     description: Cancela una transferencia que esté en estado PENDING o IN_TRANSIT
+     *     tags: [Transfers]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *     responses:
+     *       200:
+     *         description: Transferencia cancelada
+     *       400:
+     *         description: Error
+     */
+    router.delete('/:id', async (req: Request, res: Response) => {
+        try {
+            if (!req.user) throw new Error('No autorizado');
+            const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+            const transfer = await transferService.cancelTransfer(id);
+            res.json({ message: 'Transferencia cancelada exitosamente', transfer });
+        } catch (error: any) {
+            if (error.message.includes('no encontrada')) {
+                res.status(404).json({ error: error.message });
+            } else {
+                res.status(400).json({ error: error.message });
+            }
+        }
+    });
+
+    /**
+     * @swagger
+     * /api/transfers:
+     *   get:
+     *     summary: Listar transferencias
+     *     tags: [Transfers]
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: Lista de transferencias
+     */
+    router.get('/', async (req: Request, res: Response) => {
+        try {
+            if (!req.user) throw new Error('No autorizado');
+            const filters: any = {};
+            if (req.query.status) filters.status = req.query.status;
+            if (req.query.direction) filters.direction = req.query.direction;
+            const transfers = await transferService.listTransfersByBranch(req.user.branchId, filters);
+            res.json(transfers);
+        } catch (error: any) {
+            res.status(500).json({ error: error.message });
+        }
+    });
+
     return router;
 }

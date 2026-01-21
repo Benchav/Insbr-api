@@ -31,6 +31,9 @@ export interface Sale {
     // Información de pago
     paymentMethod?: 'CASH' | 'TRANSFER' | 'CHECK';
 
+    // Estado de la venta
+    status?: 'ACTIVE' | 'CANCELLED';
+
     // Metadata
     notes?: string;
     createdBy: string; // userId

@@ -127,6 +127,34 @@ export class SaleRepositoryTurso implements ISaleRepository {
         return sales;
     }
 
+    async update(id: string, data: Partial<Sale>): Promise<Sale> {
+        const updates: string[] = [];
+        const args: any[] = [];
+
+        if (data.status !== undefined) {
+            updates.push('status = ?');
+            args.push(data.status);
+        }
+
+        if (updates.length === 0) {
+            throw new Error('No hay campos para actualizar');
+        }
+
+        args.push(id);
+
+        await tursoClient.execute({
+            sql: `UPDATE sales SET ${updates.join(', ')} WHERE id = ?`,
+            args
+        });
+
+        const updated = await this.findById(id);
+        if (!updated) {
+            throw new Error('Venta no encontrada después de actualizar');
+        }
+
+        return updated;
+    }
+
     async delete(id: string): Promise<void> {
         // Los items se eliminan automáticamente por ON DELETE CASCADE
         await tursoClient.execute({
@@ -155,6 +183,7 @@ export class SaleRepositoryTurso implements ISaleRepository {
             total: Number(saleRow.total),
             type: saleRow.type as 'CASH' | 'CREDIT',
             paymentMethod: saleRow.payment_method as 'CASH' | 'TRANSFER' | 'CHECK' | undefined,
+            status: saleRow.status as 'ACTIVE' | 'CANCELLED' | undefined,
             notes: saleRow.notes as string | undefined,
             createdBy: saleRow.created_by as string,
             createdAt: new Date(saleRow.created_at as string)

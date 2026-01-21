@@ -123,5 +123,59 @@ export function createSaleController(saleService: SaleService): Router {
         }
     });
 
+    /**
+     * @swagger
+     * /api/sales/{id}/cancel:
+     *   post:
+     *     summary: Cancelar venta
+     *     description: Cancela una venta del día actual y revierte stock, caja y créditos. Solo ADMIN.
+     *     tags: [Sales]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: ID de la venta
+     *     responses:
+     *       200:
+     *         description: Venta cancelada exitosamente
+     *       400:
+     *         description: Error - No se puede cancelar (fuera de fecha, con pagos, etc.)
+     *       403:
+     *         description: Solo ADMIN puede cancelar ventas
+     *       404:
+     *         description: Venta no encontrada
+     */
+    router.post('/:id/cancel', async (req: Request, res: Response) => {
+        try {
+            if (!req.user) throw new Error('No autorizado');
+
+            // Solo ADMIN puede cancelar ventas
+            if (req.user.role !== 'ADMIN') {
+                return res.status(403).json({
+                    error: 'No autorizado',
+                    message: 'Solo los administradores pueden cancelar ventas'
+                });
+            }
+
+            const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+            const sale = await saleService.cancelSale(id, req.user.userId);
+
+            res.json({
+                message: 'Venta cancelada exitosamente',
+                sale
+            });
+        } catch (error: any) {
+            if (error.message.includes('no encontrada')) {
+                res.status(404).json({ error: error.message });
+            } else {
+                res.status(400).json({ error: error.message });
+            }
+        }
+    });
+
     return router;
 }

@@ -47,6 +47,17 @@ export class SaleRepositoryImpl implements ISaleRepository {
             .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     }
 
+    async update(id: string, data: Partial<Sale>): Promise<Sale> {
+        const sale = storage.sales.get(id);
+        if (!sale) {
+            throw new Error('Venta no encontrada');
+        }
+
+        const updated = { ...sale, ...data };
+        storage.sales.set(id, updated);
+        return updated;
+    }
+
     async delete(id: string): Promise<void> {
         storage.sales.delete(id);
     }
