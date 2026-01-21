@@ -56,7 +56,8 @@ export class PurchaseService {
                 supplierId: data.supplierId,
                 purchaseId: purchase.id,
                 totalAmount: data.total,
-                dueDate
+                dueDate,
+                invoiceNumber: (data as any).invoiceNumber
             };
 
             await this.creditAccountRepository.create(creditAccountData);

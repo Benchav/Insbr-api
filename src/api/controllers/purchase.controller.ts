@@ -65,6 +65,9 @@ export function createPurchaseController(purchaseService: PurchaseService): Rout
      *                     unitCost:
      *                       type: integer
      *                       description: Costo unitario en centavos
+     *               invoiceNumber:
+     *                 type: string
+     *                 description: Número de factura del proveedor (opcional)
      *               notes:
      *                 type: string
      *     responses:

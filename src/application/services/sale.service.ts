@@ -74,7 +74,9 @@ export class SaleService {
                 customerId: data.customerId,
                 saleId: sale.id,
                 totalAmount: data.total,
-                dueDate
+                dueDate,
+                deliveryDate: (data as any).deliveryDate ? new Date((data as any).deliveryDate) : undefined,
+                notes: (data as any).notes
             };
 
             await this.creditAccountRepository.create(creditAccountData);

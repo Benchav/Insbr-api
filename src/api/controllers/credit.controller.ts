@@ -11,6 +11,11 @@ const registerPaymentSchema = z.object({
     notes: z.string().optional()
 });
 
+const updateDetailsSchema = z.object({
+    deliveryDate: z.string().optional(),
+    notes: z.string().optional()
+});
+
 export function createCreditController(creditService: CreditService): Router {
     const router = Router();
     // Note: authenticate and authorize middlewares are applied at app.ts level
@@ -207,6 +212,89 @@ export function createCreditController(creditService: CreditService): Router {
             res.json({ message: 'Cuenta de crédito cancelada exitosamente' });
         } catch (error: any) {
             if (error.message.includes('no encontrada')) {
+                res.status(404).json({ error: error.message });
+            } else {
+                res.status(400).json({ error: error.message });
+            }
+        }
+    });
+
+    /**
+     * @swagger
+     * /api/credits/{id}/details:
+     *   patch:
+     *     summary: Actualizar detalles de un encargo (fecha de entrega, notas)
+     *     tags: [Credits]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: ID de la cuenta de crédito
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             properties:
+     *               deliveryDate:
+     *                 type: string
+     *                 format: date
+     *                 description: Nueva fecha de entrega
+     *               notes:
+     *                 type: string
+     *                 description: Notas del encargo
+     *     responses:
+     *       200:
+     *         description: Detalles actualizados exitosamente
+     *       400:
+     *         description: Error - Cuenta ya pagada o no encontrada
+     *       403:
+     *         description: Solo ADMIN y GERENTE pueden actualizar detalles
+     */
+    router.patch('/:id/details', async (req: Request, res: Response) => {
+        try {
+            if (!req.user) throw new Error('No autorizado');
+
+            // Solo ADMIN y GERENTE pueden actualizar detalles
+            if (req.user.role !== 'ADMIN' && req.user.role !== 'GERENTE') {
+                return res.status(403).json({
+                    error: 'No autorizado',
+                    message: 'Solo los administradores y gerentes pueden actualizar detalles de encargos'
+                });
+            }
+
+            const body = updateDetailsSchema.parse(req.body);
+            const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+            // Validar que la cuenta existe
+            const account = await creditService.getCreditAccount(id);
+
+            // No permitir editar cuentas ya pagadas
+            if (account.status === 'PAGADO') {
+                return res.status(400).json({
+                    error: 'No se puede modificar una cuenta ya pagada completamente'
+                });
+            }
+
+            // Acceder al repository directamente desde el service
+            const creditAccountRepository = (creditService as any).creditAccountRepository;
+
+            // Actualizar detalles
+            await creditAccountRepository.update(id, {
+                deliveryDate: body.deliveryDate ? new Date(body.deliveryDate) : undefined,
+                notes: body.notes
+            });
+
+            res.json({ message: 'Detalles actualizados correctamente' });
+        } catch (error: any) {
+            if (error instanceof z.ZodError) {
+                res.status(400).json({ error: error.issues });
+            } else if (error.message.includes('no encontrada')) {
                 res.status(404).json({ error: error.message });
             } else {
                 res.status(400).json({ error: error.message });
