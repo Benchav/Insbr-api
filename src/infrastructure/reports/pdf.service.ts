@@ -310,36 +310,15 @@ export class PdfService {
 
         // Mensaje de agradecimiento
         doc.font("Helvetica-Bold")
-            .fontSize(10)
+            .fontSize(11)
             .text("¡GRACIAS POR SU COMPRA!", margin, doc.y, {
                 width: contentWidth,
                 align: "center"
             });
 
-        doc.moveDown(0.5);
-
-        // Políticas
-        doc.font("Helvetica")
-            .fontSize(7)
-            .text("Políticas de devolución:", margin, doc.y, {
-                width: contentWidth,
-                align: "center"
-            });
-
-        doc.fontSize(7)
-            .text("- Devoluciones dentro de 24 horas", margin, doc.y + 2, {
-                width: contentWidth,
-                align: "center"
-            });
-
-        doc.text("- Presentar este ticket", margin, doc.y + 2, {
-            width: contentWidth,
-            align: "center"
-        });
-
         // Estado de la venta (si está cancelada)
         if (sale.status === 'CANCELLED') {
-            doc.moveDown(0.5);
+            doc.moveDown(0.8);
             doc.font("Helvetica-Bold")
                 .fontSize(10)
                 .text("*** VENTA CANCELADA ***", margin, doc.y, {
@@ -348,9 +327,9 @@ export class PdfService {
                 });
         }
 
-        doc.moveDown(0.5);
+        doc.moveDown(0.8);
 
-        // Información adicional
+        // Información del sistema
         doc.font("Helvetica")
             .fontSize(6)
             .text("Sistema ERP Insumos v2.0", margin, doc.y, {
