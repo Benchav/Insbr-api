@@ -214,5 +214,93 @@ export function createAuthController(authService: AuthService): Router {
         }
     });
 
+    /**
+     * @swagger
+     * /api/auth/users/{id}:
+     *   put:
+     *     summary: Actualizar usuario completo (Solo ADMIN)
+     *     description: Actualiza información de un usuario. Password opcional (solo si se quiere cambiar).
+     *     tags: [Auth]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: ID del usuario a actualizar
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             properties:
+     *               username:
+     *                 type: string
+     *               password:
+     *                 type: string
+     *                 minLength: 3
+     *               name:
+     *                 type: string
+     *               role:
+     *                 type: string
+     *                 enum: [ADMIN, SELLER]
+     *               branchId:
+     *                 type: string
+     *               isActive:
+     *                 type: boolean
+     *     responses:
+     *       200:
+     *         description: Usuario actualizado exitosamente
+     *       400:
+     *         description: Datos inválidos
+     *       403:
+     *         description: No autorizado
+     *       404:
+     *         description: Usuario no encontrado
+     */
+    const updateUserSchema = z.object({
+        username: z.string().min(3).optional(),
+        password: z.string().min(3).optional(),
+        name: z.string().min(3).optional(),
+        role: z.enum(['ADMIN', 'SELLER']).optional(),
+        branchId: z.string().min(1).optional(),
+        isActive: z.boolean().optional()
+    });
+
+    router.put('/users/:id', authenticate, authorize(['ADMIN']), async (req: Request, res: Response) => {
+        try {
+            const id = req.params.id as string;
+            const updates = updateUserSchema.parse(req.body);
+
+            const updatedUser = await authService.updateUser(id, updates);
+
+            res.json({
+                message: 'Usuario actualizado exitosamente',
+                user: updatedUser
+            });
+        } catch (error: any) {
+            if (error instanceof z.ZodError) {
+                res.status(400).json({ error: error.issues });
+                return;
+            }
+
+            if (error.message === 'Usuario no encontrado') {
+                res.status(404).json({ error: error.message });
+                return;
+            }
+
+            if (error.message === 'El nombre de usuario ya está en uso') {
+                res.status(400).json({ error: error.message });
+                return;
+            }
+
+            console.error('Error en update user:', error);
+            res.status(500).json({ error: 'Error al actualizar usuario' });
+        }
+    });
+
     return router;
 }

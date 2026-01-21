@@ -108,4 +108,51 @@ export class AuthService {
         const { password: _, ...userWithoutPassword } = user;
         return userWithoutPassword;
     }
+
+    /**
+     * Update User - Actualiza información del usuario (ADMIN)
+     */
+    async updateUser(id: string, updates: {
+        username?: string;
+        password?: string;
+        name?: string;
+        role?: 'ADMIN' | 'SELLER';
+        branchId?: string;
+        isActive?: boolean;
+    }): Promise<Omit<User, 'password'>> {
+        // 1. Verificar si el usuario existe
+        const user = await this.userRepository.findById(id);
+        if (!user) {
+            throw new Error('Usuario no encontrado');
+        }
+
+        // 2. Si se cambia el username, verificar duplicados
+        if (updates.username && updates.username !== user.username) {
+            const existingUser = await this.userRepository.findByUsername(updates.username);
+            if (existingUser) {
+                throw new Error('El nombre de usuario ya está en uso');
+            }
+            user.username = updates.username;
+        }
+
+        // 3. Actualizar campos simples
+        if (updates.name) user.name = updates.name;
+        if (updates.role) user.role = updates.role;
+        if (updates.branchId) user.branchId = updates.branchId;
+        if (updates.isActive !== undefined) user.isActive = updates.isActive;
+
+        // 4. Si se cambia password, hashear
+        if (updates.password) {
+            user.password = await bcrypt.hash(updates.password, 10);
+        }
+
+        user.updatedAt = new Date();
+
+        // 5. Guardar cambios
+        const updatedUser = await this.userRepository.update(user);
+
+        // Retornar sin password
+        const { password: _, ...userWithoutPassword } = updatedUser;
+        return userWithoutPassword;
+    }
 }
