@@ -242,18 +242,19 @@ async function runTests() {
         console.log('💳 8. CRÉDITOS');
         console.log('--------------');
 
-        const credits = await apiRequest('GET', '/api/credits/accounts', adminToken);
+        const credits = await apiRequest('GET', '/api/credits', adminToken);
         console.log(`✅ Cuentas de crédito: ${credits.length}`);
 
         if (credits.length > 0) {
-            const payment = await apiRequest('POST', `/api/credits/accounts/${credits[0].id}/payments`, adminToken, {
+            const payment = await apiRequest('POST', `/api/credits/payments`, adminToken, {
+                creditAccountId: credits[0].id,
                 amount: 50000,
                 paymentMethod: 'CASH',
                 notes: 'Abono a cuenta'
             });
             console.log(`✅ Pago registrado: C$${(payment.amount / 100).toFixed(2)}`);
 
-            const payments = await apiRequest('GET', `/api/credits/accounts/${credits[0].id}/payments`, adminToken);
+            const payments = await apiRequest('GET', `/api/credits/${credits[0].id}/history`, adminToken);
             console.log(`✅ Pagos de la cuenta: ${payments.length}\n`);
         }
 
