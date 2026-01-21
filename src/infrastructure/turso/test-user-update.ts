@@ -43,7 +43,7 @@ async function testUserUpdate() {
                 username: tempUsername,
                 password: 'password123',
                 name: 'Usuario Prueba Original',
-                role: 'SELLER',
+                role: 'CAJERO',
                 branchId: 'BRANCH-DIR-001'
             })
         });

@@ -55,7 +55,7 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
  * Middleware de Autorización (RBAC)
  * Factory que retorna un middleware que verifica si el rol del usuario está permitido
  * 
- * @param allowedRoles - Array de roles permitidos (ej: ['ADMIN', 'SELLER'])
+ * @param allowedRoles - Array de roles permitidos (ej: ['ADMIN', 'GERENTE', 'CAJERO'])
  * @returns Middleware que verifica autorización
  */
 export const authorize = (allowedRoles: string[]) => {

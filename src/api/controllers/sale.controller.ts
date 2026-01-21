@@ -140,7 +140,7 @@ export function createSaleController(saleService: SaleService): Router {
      * /api/sales/{id}/cancel:
      *   post:
      *     summary: Cancelar venta
-     *     description: Cancela una venta del día actual y revierte stock, caja y créditos. Solo ADMIN y GERENTE.
+     *     description: Cancela una venta del día actual y revierte stock, caja y créditos. Todos los roles pueden cancelar.
      *     tags: [Sales]
      *     security:
      *       - bearerAuth: []
@@ -157,7 +157,7 @@ export function createSaleController(saleService: SaleService): Router {
      *       400:
      *         description: Error - No se puede cancelar (fuera de fecha, con pagos, etc.)
      *       403:
-     *         description: Solo ADMIN y GERENTE pueden cancelar ventas
+     *         description: Venta fuera de fecha o con pagos registrados
      *       404:
      *         description: Venta no encontrada
      */
@@ -165,13 +165,8 @@ export function createSaleController(saleService: SaleService): Router {
         try {
             if (!req.user) throw new Error('No autorizado');
 
-            // Solo ADMIN y GERENTE pueden cancelar ventas
-            if (req.user.role !== 'ADMIN' && req.user.role !== 'GERENTE') {
-                return res.status(403).json({
-                    error: 'No autorizado',
-                    message: 'Solo los administradores y gerentes pueden cancelar ventas'
-                });
-            }
+            // Todos los roles pueden cancelar ventas del día actual
+            // Esto permite que CAJERO corrija errores inmediatos
 
             const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
             const sale = await saleService.cancelSale(id, req.user.userId);
