@@ -4,13 +4,20 @@ import { PurchaseService } from '../../application/services/purchase.service.js'
 
 const createPurchaseSchema = z.object({
     supplierId: z.string(),
-    type: z.enum(['CASH', 'CREDIT']),
-    paymentMethod: z.enum(['CASH', 'TRANSFER', 'CHECK']).optional(),
     items: z.array(z.object({
         productId: z.string(),
+        productName: z.string(),
         quantity: z.number().int().positive(),
-        unitCost: z.number().int().positive() // Costo unitario de compra en centavos
+        unitCost: z.number().int().positive(),
+        subtotal: z.number().int().positive()
     })).min(1),
+    subtotal: z.number().int().min(0),
+    tax: z.number().int().min(0),
+    discount: z.number().int().min(0),
+    total: z.number().int().positive(),
+    type: z.enum(['CASH', 'CREDIT']),
+    paymentMethod: z.enum(['CASH', 'TRANSFER', 'CHECK']).optional(),
+    invoiceNumber: z.string().optional(),
     notes: z.string().optional()
 });
 
@@ -72,19 +79,9 @@ export function createPurchaseController(purchaseService: PurchaseService): Rout
             if (!req.user) throw new Error('No autorizado');
             const body = createPurchaseSchema.parse(req.body);
 
-            // Calcular total de la compra
-            let total = 0;
-            const items = body.items.map(i => {
-                const lineTotal = i.unitCost * i.quantity;
-                total += lineTotal;
-                return { ...i, subtotal: lineTotal };
-            });
-
             const purchase = await purchaseService.createPurchase({
                 ...body,
-                items,
-                total,
-                branchId: req.user.branchId, // Aislamiento por sucursal
+                branchId: req.user.branchId,
                 createdBy: req.user.userId,
                 createdAt: new Date()
             } as any);

@@ -106,6 +106,8 @@ const options: swaggerJsdoc.Options = {
         tags: [
             { name: 'Auth', description: 'Autenticación y gestión de usuarios' },
             { name: 'Products', description: 'Gestión de productos (catálogo compartido)' },
+            { name: 'Customers', description: 'Gestión de clientes' },
+            { name: 'Suppliers', description: 'Gestión de proveedores' },
             { name: 'Branches', description: 'Gestión de sucursales' },
             { name: 'Stock', description: 'Gestión de inventario por sucursal' },
             { name: 'Sales', description: 'Gestión de ventas' },

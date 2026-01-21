@@ -3,18 +3,18 @@ import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './config/swagger.js';
 
-// Repositories
-import { ProductRepositoryImpl } from './infrastructure/memory/repositories/product.repository.impl.js';
-import { StockRepositoryImpl } from './infrastructure/memory/repositories/stock.repository.impl.js';
-import { CustomerRepositoryImpl } from './infrastructure/memory/repositories/customer.repository.impl.js';
-import { SupplierRepositoryImpl } from './infrastructure/memory/repositories/supplier.repository.impl.js';
-import { CreditAccountRepositoryImpl, CreditPaymentRepositoryImpl } from './infrastructure/memory/repositories/credit-account.repository.impl.js';
-import { SaleRepositoryImpl } from './infrastructure/memory/repositories/sale.repository.impl.js';
-import { PurchaseRepositoryImpl } from './infrastructure/memory/repositories/purchase.repository.impl.js';
-import { CashMovementRepositoryImpl } from './infrastructure/memory/repositories/cash-movement.repository.impl.js';
-import { TransferRepositoryImpl } from './infrastructure/memory/repositories/transfer.repository.impl.js';
-import { UserRepositoryImpl } from './infrastructure/memory/repositories/user.repository.impl.js';
-import { BranchRepositoryImpl } from './infrastructure/memory/repositories/branch.repository.impl.js';
+// Repositories - Turso
+import { ProductRepositoryTurso } from './infrastructure/turso/repositories/product.repository.turso.js';
+import { StockRepositoryTurso } from './infrastructure/turso/repositories/stock.repository.turso.js';
+import { CustomerRepositoryTurso } from './infrastructure/turso/repositories/customer.repository.turso.js';
+import { SupplierRepositoryTurso } from './infrastructure/turso/repositories/supplier.repository.turso.js';
+import { CreditAccountRepositoryTurso, CreditPaymentRepositoryTurso } from './infrastructure/turso/repositories/credit-account.repository.turso.js';
+import { SaleRepositoryTurso } from './infrastructure/turso/repositories/sale.repository.turso.js';
+import { PurchaseRepositoryTurso } from './infrastructure/turso/repositories/purchase.repository.turso.js';
+import { CashMovementRepositoryTurso } from './infrastructure/turso/repositories/cash-movement.repository.turso.js';
+import { TransferRepositoryTurso } from './infrastructure/turso/repositories/transfer.repository.turso.js';
+import { UserRepositoryTurso } from './infrastructure/turso/repositories/user.repository.turso.js';
+import { BranchRepositoryTurso } from './infrastructure/turso/repositories/branch.repository.turso.js';
 
 // Services
 import { ProductService } from './application/services/product.service.js';
@@ -25,6 +25,8 @@ import { TransferService } from './application/services/transfer.service.js';
 import { CashService } from './application/services/cash.service.js';
 import { StockService } from './application/services/stock.service.js';
 import { AuthService } from './application/services/auth.service.js';
+import { CustomerService } from './application/services/customer.service.js';
+import { SupplierService } from './application/services/supplier.service.js';
 import { PdfService } from './infrastructure/reports/pdf.service.js';
 import { ExcelService } from './infrastructure/reports/excel.service.js';
 
@@ -38,6 +40,8 @@ import { createReportController } from './api/controllers/report.controller.js';
 import { createAuthController } from './api/controllers/auth.controller.js';
 import { createCashController } from './api/controllers/cash.controller.js';
 import { createStockController } from './api/controllers/stock.controller.js';
+import { createCustomerController } from './api/controllers/customer.controller.js';
+import { createSupplierController } from './api/controllers/supplier.controller.js';
 import { authenticate, authorize } from './infrastructure/web/middlewares/auth.middleware.js';
 
 export function createApp(): Express {
@@ -45,19 +49,19 @@ export function createApp(): Express {
   app.use(cors());
   app.use(express.json());
 
-  // 1. Inicializar Repositorios
-  const productRepository = new ProductRepositoryImpl();
-  const stockRepository = new StockRepositoryImpl();
-  const customerRepository = new CustomerRepositoryImpl();
-  const supplierRepository = new SupplierRepositoryImpl();
-  const creditAccountRepository = new CreditAccountRepositoryImpl();
-  const creditPaymentRepository = new CreditPaymentRepositoryImpl();
-  const saleRepository = new SaleRepositoryImpl();
-  const purchaseRepository = new PurchaseRepositoryImpl();
-  const cashMovementRepository = new CashMovementRepositoryImpl();
-  const transferRepository = new TransferRepositoryImpl();
-  const branchRepository = new BranchRepositoryImpl();
-  const userRepository = new UserRepositoryImpl();
+  // 1. Inicializar Repositorios Turso
+  const productRepository = new ProductRepositoryTurso();
+  const stockRepository = new StockRepositoryTurso();
+  const customerRepository = new CustomerRepositoryTurso();
+  const supplierRepository = new SupplierRepositoryTurso();
+  const creditAccountRepository = new CreditAccountRepositoryTurso();
+  const creditPaymentRepository = new CreditPaymentRepositoryTurso();
+  const saleRepository = new SaleRepositoryTurso();
+  const purchaseRepository = new PurchaseRepositoryTurso();
+  const cashMovementRepository = new CashMovementRepositoryTurso();
+  const transferRepository = new TransferRepositoryTurso();
+  const branchRepository = new BranchRepositoryTurso();
+  const userRepository = new UserRepositoryTurso();
 
   // 2. Inicializar Servicios
   const productService = new ProductService(productRepository);
@@ -95,6 +99,10 @@ export function createApp(): Express {
 
   const cashService = new CashService(cashMovementRepository);
   const stockService = new StockService(stockRepository, productRepository);
+
+  const customerService = new CustomerService(customerRepository);
+  const supplierService = new SupplierService(supplierRepository);
+
   const authService = new AuthService(userRepository);
   const pdfService = new PdfService();
   const excelService = new ExcelService(productRepository);
@@ -110,6 +118,12 @@ export function createApp(): Express {
 
   // Productos - ADMIN y SELLER pueden ver el catálogo
   app.use('/api/products', authenticate, authorize(['ADMIN', 'SELLER']), createProductController(productService));
+
+  // Clientes - ADMIN y SELLER pueden gestionar
+  app.use('/api/customers', authenticate, authorize(['ADMIN', 'SELLER']), createCustomerController(customerService));
+
+  // Proveedores - Solo ADMIN
+  app.use('/api/suppliers', authenticate, authorize(['ADMIN']), createSupplierController(supplierService));
 
   // Ventas - ADMIN y SELLER pueden vender
   app.use('/api/sales', authenticate, authorize(['ADMIN', 'SELLER']), createSaleController(saleService));

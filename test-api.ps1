@@ -1,301 +1,321 @@
-# Script de prueba de API en PowerShell
-# Prueba todos los endpoints y verifica unidades de medida
+# Script de Pruebas Completo de API - ERP Insumos
+# Prueba todos los endpoints usando la API REST
 
-$baseUrl = "http://localhost:3000"
-$token = ""
+$API_BASE = "http://localhost:3000"
+$ErrorActionPreference = "Stop"
 
-function Write-ColorOutput($message, $color = "White") {
-    Write-Host $message -ForegroundColor $color
-}
+Write-Host "🧪 INICIANDO PRUEBAS COMPLETAS DE API" -ForegroundColor Cyan
+Write-Host "======================================`n" -ForegroundColor Cyan
 
-function Test-Endpoint {
+# Helper function para hacer requests
+function Invoke-ApiRequest {
     param(
         [string]$Method,
         [string]$Endpoint,
-        [object]$Body = $null
+        [string]$Token,
+        [object]$Body
     )
     
+    $headers = @{
+        "Content-Type" = "application/json"
+    }
+    
+    if ($Token) {
+        $headers["Authorization"] = "Bearer $Token"
+    }
+    
+    $params = @{
+        Uri = "$API_BASE$Endpoint"
+        Method = $Method
+        Headers = $headers
+        UseBasicParsing = $true
+    }
+    
+    if ($Body) {
+        $params["Body"] = ($Body | ConvertTo-Json -Depth 10)
+    }
+    
     try {
-        $headers = @{
-            "Content-Type" = "application/json"
-        }
-        
-        if ($token) {
-            $headers["Authorization"] = "Bearer $token"
-        }
-        
-        $params = @{
-            Uri = "$baseUrl$Endpoint"
-            Method = $Method
-            Headers = $headers
-        }
-        
-        if ($Body) {
-            $params.Body = ($Body | ConvertTo-Json -Depth 10)
-        }
-        
-        $response = Invoke-RestMethod @params
-        return @{
-            Success = $true
-            Data = $response
-            StatusCode = 200
-        }
-    }
-    catch {
-        return @{
-            Success = $false
-            Error = $_.Exception.Message
-            StatusCode = $_.Exception.Response.StatusCode.value__
-        }
+        $response = Invoke-WebRequest @params
+        return $response.Content | ConvertFrom-Json
+    } catch {
+        Write-Host "❌ Error en $Method $Endpoint : $_" -ForegroundColor Red
+        throw
     }
 }
 
-Write-ColorOutput "`n╔════════════════════════════════════════════════╗" Cyan
-Write-ColorOutput "║   PRUEBAS COMPLETAS DE API - INSBR ERP        ║" Cyan
-Write-ColorOutput "╚════════════════════════════════════════════════╝" Cyan
-
-# ============================================
-# PRUEBA 1: Health Check
-# ============================================
-Write-ColorOutput "`n🏥 HEALTH CHECK" Blue
-Write-ColorOutput "━" * 50 Blue
-
-$result = Test-Endpoint -Method "GET" -Endpoint "/health"
-if ($result.Success) {
-    Write-ColorOutput "✅ GET /health - OK" Green
-    Write-ColorOutput "   Sistema: $($result.Data.system)" Yellow
-} else {
-    Write-ColorOutput "❌ GET /health - FALLÓ" Red
-}
-
-# ============================================
-# PRUEBA 2: Autenticación
-# ============================================
-Write-ColorOutput "`n📝 AUTENTICACIÓN" Blue
-Write-ColorOutput "━" * 50 Blue
-
-$loginBody = @{
-    username = "admin"
-    password = "admin123"
-}
-
-$result = Test-Endpoint -Method "POST" -Endpoint "/api/auth/login" -Body $loginBody
-if ($result.Success -and $result.Data.token) {
-    $token = $result.Data.token
-    Write-ColorOutput "✅ POST /api/auth/login - OK" Green
-    Write-ColorOutput "   Token: $($token.Substring(0, 20))..." Yellow
-} else {
-    Write-ColorOutput "❌ POST /api/auth/login - FALLÓ" Red
-}
-
-# ============================================
-# PRUEBA 3: Productos
-# ============================================
-Write-ColorOutput "`n📦 PRODUCTOS" Blue
-Write-ColorOutput "━" * 50 Blue
-
-# Listar productos
-$result = Test-Endpoint -Method "GET" -Endpoint "/api/products"
-if ($result.Success) {
-    Write-ColorOutput "✅ GET /api/products - OK" Green
-    Write-ColorOutput "   Total productos: $($result.Data.Count)" Yellow
+try {
+    # 1. AUTENTICACIÓN
+    Write-Host "🔐 1. AUTENTICACIÓN" -ForegroundColor Yellow
+    Write-Host "-------------------"
     
-    if ($result.Data.Count -gt 0) {
-        $product = $result.Data[0]
-        Write-ColorOutput "`n   📋 Ejemplo de producto:" Cyan
-        Write-ColorOutput "   - Nombre: $($product.name)" Yellow
-        Write-ColorOutput "   - SKU: $($product.sku)" Yellow
-        Write-ColorOutput "   - Unidad: $($product.unit)" Yellow
-        Write-ColorOutput "   - Precio costo: C`$$([math]::Round($product.costPrice / 100, 2))" Yellow
-        Write-ColorOutput "   - Precio detalle: C`$$([math]::Round($product.retailPrice / 100, 2))" Yellow
-        Write-ColorOutput "   - Precio mayoreo: C`$$([math]::Round($product.wholesalePrice / 100, 2))" Yellow
-        
-        # Verificar unidades
-        if ($product.costPrice -gt 100 -and $product.retailPrice -gt 100) {
-            Write-ColorOutput "   ✓ Precios en centavos: CORRECTO" Green
-        } else {
-            Write-ColorOutput "   ⚠ Advertencia: Precios parecen muy bajos" Yellow
+    $adminLogin = Invoke-ApiRequest -Method POST -Endpoint "/api/auth/login" -Body @{
+        username = "admin_diriamba"
+        password = "123"
+    }
+    $adminToken = $adminLogin.token
+    Write-Host "✅ Login Admin: $($adminLogin.user.name)" -ForegroundColor Green
+    
+    $sellerLogin = Invoke-ApiRequest -Method POST -Endpoint "/api/auth/login" -Body @{
+        username = "cajero_diriamba"
+        password = "123"
+    }
+    $sellerToken = $sellerLogin.token
+    Write-Host "✅ Login Seller: $($sellerLogin.user.name)`n" -ForegroundColor Green
+
+    # 2. PRODUCTOS
+    Write-Host "📦 2. PRODUCTOS" -ForegroundColor Yellow
+    Write-Host "---------------"
+    
+    $products = Invoke-ApiRequest -Method GET -Endpoint "/api/products" -Token $adminToken
+    Write-Host "✅ Productos existentes: $($products.Count)"
+    
+    $newProduct = Invoke-ApiRequest -Method POST -Endpoint "/api/products" -Token $adminToken -Body @{
+        name = "Levadura Instantánea"
+        description = "Levadura para panadería de alta calidad"
+        sku = "LEV-INST-001"
+        category = "Levaduras"
+        costPrice = 5000
+        retailPrice = 7000
+        wholesalePrice = 6000
+        unit = "kg"
+        isActive = $true
+    }
+    Write-Host "✅ Producto creado: $($newProduct.name) - SKU: $($newProduct.sku)"
+    
+    $products = Invoke-ApiRequest -Method GET -Endpoint "/api/products" -Token $adminToken
+    Write-Host "✅ Total productos: $($products.Count)`n" -ForegroundColor Green
+
+    # 3. CLIENTES
+    Write-Host "👥 3. CLIENTES" -ForegroundColor Yellow
+    Write-Host "--------------"
+    
+    $customer1 = Invoke-ApiRequest -Method POST -Endpoint "/api/customers" -Token $adminToken -Body @{
+        name = "Panadería El Buen Pan"
+        phone = "88888888"
+        address = "Barrio San Juan, Diriamba"
+        type = "RETAIL"
+        creditLimit = 500000
+    }
+    Write-Host "✅ Cliente retail: $($customer1.name)"
+    
+    $customer2 = Invoke-ApiRequest -Method POST -Endpoint "/api/customers" -Token $sellerToken -Body @{
+        name = "Distribuidora La Económica"
+        contactName = "Juan Pérez"
+        phone = "77777777"
+        email = "economica@example.com"
+        address = "Km 42 Carretera Sur"
+        taxId = "J0310000012345"
+        type = "WHOLESALE"
+        creditLimit = 2000000
+    }
+    Write-Host "✅ Cliente mayorista: $($customer2.name)"
+    
+    $customers = Invoke-ApiRequest -Method GET -Endpoint "/api/customers" -Token $adminToken
+    Write-Host "✅ Total clientes: $($customers.Count)`n" -ForegroundColor Green
+
+    # 4. PROVEEDORES
+    Write-Host "🏭 4. PROVEEDORES" -ForegroundColor Yellow
+    Write-Host "-----------------"
+    
+    $supplier1 = Invoke-ApiRequest -Method POST -Endpoint "/api/suppliers" -Token $adminToken -Body @{
+        name = "Molinos de Nicaragua S.A."
+        contactName = "María González"
+        phone = "22223333"
+        email = "ventas@molinos.com.ni"
+        address = "Managua, Nicaragua"
+        taxId = "J0310000098765"
+        creditDays = 30
+        creditLimit = 5000000
+    }
+    Write-Host "✅ Proveedor: $($supplier1.name) - Crédito: $($supplier1.creditDays) días"
+    
+    $suppliers = Invoke-ApiRequest -Method GET -Endpoint "/api/suppliers" -Token $adminToken
+    Write-Host "✅ Total proveedores: $($suppliers.Count)`n" -ForegroundColor Green
+
+    # 5. STOCK
+    Write-Host "📊 5. STOCK" -ForegroundColor Yellow
+    Write-Host "-----------"
+    
+    $stock = Invoke-ApiRequest -Method GET -Endpoint "/api/stock" -Token $adminToken
+    Write-Host "✅ Registros de stock: $($stock.Count)"
+    
+    if ($stock.Count -gt 0) {
+        $stockAlerts = Invoke-ApiRequest -Method GET -Endpoint "/api/stock/alerts" -Token $adminToken
+        Write-Host "✅ Alertas de stock bajo: $($stockAlerts.Count)`n" -ForegroundColor Green
+    }
+
+    # 6. VENTAS
+    Write-Host "💰 6. VENTAS" -ForegroundColor Yellow
+    Write-Host "------------"
+    
+    # Venta al contado
+    $sale1 = Invoke-ApiRequest -Method POST -Endpoint "/api/sales" -Token $sellerToken -Body @{
+        items = @(
+            @{
+                productId = $products[0].id
+                productName = $products[0].name
+                quantity = 5
+                unitPrice = $products[0].retailPrice
+                subtotal = 5 * $products[0].retailPrice
+            },
+            @{
+                productId = $products[1].id
+                productName = $products[1].name
+                quantity = 3
+                unitPrice = $products[1].retailPrice
+                subtotal = 3 * $products[1].retailPrice
+            }
+        )
+        subtotal = (5 * $products[0].retailPrice) + (3 * $products[1].retailPrice)
+        tax = 0
+        discount = 0
+        total = (5 * $products[0].retailPrice) + (3 * $products[1].retailPrice)
+        type = "CASH"
+        paymentMethod = "CASH"
+    }
+    $saleTotal = [math]::Round($sale1.total/100, 2)
+    Write-Host "✅ Venta al contado: $($sale1.id) - Total: $saleTotal córdobas"
+    
+    # Venta a crédito
+    $sale2 = Invoke-ApiRequest -Method POST -Endpoint "/api/sales" -Token $sellerToken -Body @{
+        customerId = $customer2.id
+        items = @(
+            @{
+                productId = $products[0].id
+                productName = $products[0].name
+                quantity = 20
+                unitPrice = $products[0].wholesalePrice
+                subtotal = 20 * $products[0].wholesalePrice
+            }
+        )
+        subtotal = 20 * $products[0].wholesalePrice
+        tax = 0
+        discount = 0
+        total = 20 * $products[0].wholesalePrice
+        type = "CREDIT"
+    }
+    $sale2Total = [math]::Round($sale2.total/100, 2)
+    Write-Host "✅ Venta a crédito: $($sale2.id) - Total: $sale2Total córdobas"
+    
+    $sales = Invoke-ApiRequest -Method GET -Endpoint "/api/sales" -Token $sellerToken
+    Write-Host "✅ Total ventas: $($sales.Count)`n" -ForegroundColor Green
+
+    # 7. COMPRAS
+    Write-Host "🛒 7. COMPRAS" -ForegroundColor Yellow
+    Write-Host "-------------"
+    
+    $purchase1 = Invoke-ApiRequest -Method POST -Endpoint "/api/purchases" -Token $adminToken -Body @{
+        supplierId = $supplier1.id
+        items = @(
+            @{
+                productId = $products[0].id
+                productName = $products[0].name
+                quantity = 100
+                unitCost = $products[0].costPrice
+                subtotal = 100 * $products[0].costPrice
+            },
+            @{
+                productId = $newProduct.id
+                productName = $newProduct.name
+                quantity = 50
+                unitCost = $newProduct.costPrice
+                subtotal = 50 * $newProduct.costPrice
+            }
+        )
+        subtotal = (100 * $products[0].costPrice) + (50 * $newProduct.costPrice)
+        tax = 0
+        discount = 0
+        total = (100 * $products[0].costPrice) + (50 * $newProduct.costPrice)
+        type = "CREDIT"
+        invoiceNumber = "FAC-001-2026"
+    }
+    $purchaseTotal = [math]::Round($purchase1.total/100, 2)
+    Write-Host "✅ Compra a crédito: $($purchase1.id) - Total: $purchaseTotal córdobas"
+    
+    $purchases = Invoke-ApiRequest -Method GET -Endpoint "/api/purchases" -Token $adminToken
+    Write-Host "✅ Total compras: $($purchases.Count)`n" -ForegroundColor Green
+
+    # 8. CRÉDITOS
+    Write-Host "💳 8. CRÉDITOS" -ForegroundColor Yellow
+    Write-Host "--------------"
+    
+    $credits = Invoke-ApiRequest -Method GET -Endpoint "/api/credits/accounts" -Token $adminToken
+    Write-Host "✅ Cuentas de crédito: $($credits.Count)"
+    
+    if ($credits.Count -gt 0) {
+        # Registrar un pago
+        $payment = Invoke-ApiRequest -Method POST -Endpoint "/api/credits/accounts/$($credits[0].id)/payments" -Token $adminToken -Body @{
+            amount = 50000
+            paymentMethod = "CASH"
+            notes = "Abono a cuenta"
         }
+        $paymentAmount = [math]::Round($payment.amount/100, 2)
+        Write-Host "✅ Pago registrado: $paymentAmount córdobas"
         
-        $productId = $product.id
-        
-        # Obtener producto por ID
-        $result2 = Test-Endpoint -Method "GET" -Endpoint "/api/products/$productId"
-        if ($result2.Success) {
-            Write-ColorOutput "✅ GET /api/products/:id - OK" Green
-        } else {
-            Write-ColorOutput "❌ GET /api/products/:id - FALLÓ" Red
-        }
+        $payments = Invoke-ApiRequest -Method GET -Endpoint "/api/credits/accounts/$($credits[0].id)/payments" -Token $adminToken
+        Write-Host "✅ Pagos de la cuenta: $($payments.Count)`n" -ForegroundColor Green
     }
-} else {
-    Write-ColorOutput "❌ GET /api/products - FALLÓ" Red
-}
 
-# Crear producto de prueba
-$newProduct = @{
-    name = "Producto de Prueba PowerShell"
-    description = "Descripción de prueba"
-    sku = "TEST-PS-001"
-    category = "Pruebas"
-    costPrice = 5000
-    retailPrice = 7500
-    wholesalePrice = 6500
-    unit = "unidad"
-    isActive = $true
-}
-
-$result = Test-Endpoint -Method "POST" -Endpoint "/api/products" -Body $newProduct
-if ($result.Success) {
-    Write-ColorOutput "✅ POST /api/products - OK" Green
-    Write-ColorOutput "   Producto creado: $($result.Data.id)" Yellow
-    $testProductId = $result.Data.id
+    # 9. TRANSFERENCIAS
+    Write-Host "🔄 9. TRANSFERENCIAS" -ForegroundColor Yellow
+    Write-Host "--------------------"
     
-    # Actualizar producto
-    $updateData = @{
-        name = "Producto Actualizado"
-        retailPrice = 8000
+    $transfer1 = Invoke-ApiRequest -Method POST -Endpoint "/api/transfers" -Token $adminToken -Body @{
+        toBranchId = "BRANCH-JIN-001"
+        items = @(
+            @{
+                productId = $products[0].id
+                productName = $products[0].name
+                quantity = 10
+            }
+        )
+        notes = "Transferencia de prueba a Jinotepe"
     }
+    Write-Host "✅ Transferencia creada: $($transfer1.id)"
     
-    $result2 = Test-Endpoint -Method "PUT" -Endpoint "/api/products/$testProductId" -Body $updateData
-    if ($result2.Success) {
-        Write-ColorOutput "✅ PUT /api/products/:id - OK" Green
-    } else {
-        Write-ColorOutput "❌ PUT /api/products/:id - FALLÓ" Red
-    }
+    $transfers = Invoke-ApiRequest -Method GET -Endpoint "/api/transfers" -Token $adminToken
+    Write-Host "✅ Total transferencias: $($transfers.Count)`n" -ForegroundColor Green
+
+    # 10. CAJA
+    Write-Host "💵 10. CAJA" -ForegroundColor Yellow
+    Write-Host "-----------"
     
-    # Eliminar producto
-    $result3 = Test-Endpoint -Method "DELETE" -Endpoint "/api/products/$testProductId"
-    if ($result3.Success) {
-        Write-ColorOutput "✅ DELETE /api/products/:id - OK" Green
-    } else {
-        Write-ColorOutput "❌ DELETE /api/products/:id - FALLÓ" Red
-    }
-} else {
-    Write-ColorOutput "❌ POST /api/products - FALLÓ" Red
-}
-
-# ============================================
-# PRUEBA 4: Ventas
-# ============================================
-Write-ColorOutput "`n💰 VENTAS" Blue
-Write-ColorOutput "━" * 50 Blue
-
-$result = Test-Endpoint -Method "GET" -Endpoint "/api/sales"
-if ($result.Success) {
-    Write-ColorOutput "✅ GET /api/sales - OK" Green
-    Write-ColorOutput "   Total ventas: $($result.Data.Count)" Yellow
+    $balance = Invoke-ApiRequest -Method GET -Endpoint "/api/cash/balance" -Token $adminToken
+    $income = [math]::Round($balance.income/100, 2)
+    $expenses = [math]::Round($balance.expenses/100, 2)
+    $netBalance = [math]::Round($balance.netBalance/100, 2)
     
-    if ($result.Data.Count -gt 0) {
-        $sale = $result.Data[0]
-        Write-ColorOutput "`n   📋 Ejemplo de venta:" Cyan
-        Write-ColorOutput "   - ID: $($sale.id)" Yellow
-        Write-ColorOutput "   - Total: C`$$([math]::Round($sale.total / 100, 2))" Yellow
-        Write-ColorOutput "   - Fecha: $($sale.createdAt)" Yellow
-        
-        if ($sale.total -gt 100) {
-            Write-ColorOutput "   ✓ Total en centavos: CORRECTO" Green
-        }
-    }
-} else {
-    Write-ColorOutput "❌ GET /api/sales - FALLÓ" Red
-}
-
-# ============================================
-# PRUEBA 5: Compras
-# ============================================
-Write-ColorOutput "`n🛒 COMPRAS" Blue
-Write-ColorOutput "━" * 50 Blue
-
-$result = Test-Endpoint -Method "GET" -Endpoint "/api/purchases"
-if ($result.Success) {
-    Write-ColorOutput "✅ GET /api/purchases - OK" Green
-    Write-ColorOutput "   Total compras: $($result.Data.Count)" Yellow
+    Write-Host "✅ Balance del día:"
+    Write-Host "   Ingresos: $income córdobas" -ForegroundColor Green
+    Write-Host "   Egresos: $expenses córdobas" -ForegroundColor Red
+    Write-Host "   Balance neto: $netBalance córdobas" -ForegroundColor Cyan
     
-    if ($result.Data.Count -gt 0) {
-        $purchase = $result.Data[0]
-        Write-ColorOutput "`n   📋 Ejemplo de compra:" Cyan
-        Write-ColorOutput "   - ID: $($purchase.id)" Yellow
-        Write-ColorOutput "   - Total: C`$$([math]::Round($purchase.total / 100, 2))" Yellow
-        Write-ColorOutput "   - Fecha: $($purchase.createdAt)" Yellow
-        
-        if ($purchase.total -gt 100) {
-            Write-ColorOutput "   ✓ Total en centavos: CORRECTO" Green
-        }
-    }
-} else {
-    Write-ColorOutput "❌ GET /api/purchases - FALLÓ" Red
-}
+    $dailyRevenue = Invoke-ApiRequest -Method GET -Endpoint "/api/cash/daily-revenue" -Token $adminToken
+    $revenue = [math]::Round($dailyRevenue.income/100, 2)
+    Write-Host "✅ Ingreso total del día: $revenue córdobas`n" -ForegroundColor Green
 
-# ============================================
-# PRUEBA 6: Créditos
-# ============================================
-Write-ColorOutput "`n💳 CRÉDITOS (CXC/CPP)" Blue
-Write-ColorOutput "━" * 50 Blue
-
-# Cuentas por cobrar
-$result = Test-Endpoint -Method "GET" -Endpoint "/api/credits/receivable"
-if ($result.Success) {
-    Write-ColorOutput "✅ GET /api/credits/receivable - OK" Green
-    Write-ColorOutput "   Total CXC: $($result.Data.Count)" Yellow
+    # RESUMEN FINAL
+    Write-Host "`n" + "="*50 -ForegroundColor Cyan
+    Write-Host "✅ PRUEBAS COMPLETADAS EXITOSAMENTE" -ForegroundColor Green
+    Write-Host "="*50 -ForegroundColor Cyan
     
-    if ($result.Data.Count -gt 0) {
-        $account = $result.Data[0]
-        Write-ColorOutput "   - Saldo: C`$$([math]::Round($account.balance / 100, 2))" Yellow
-        
-        if ($account.balance -gt 100) {
-            Write-ColorOutput "   ✓ Saldo en centavos: CORRECTO" Green
-        }
-    }
-} else {
-    Write-ColorOutput "❌ GET /api/credits/receivable - FALLÓ" Red
-}
-
-# Cuentas por pagar
-$result = Test-Endpoint -Method "GET" -Endpoint "/api/credits/payable"
-if ($result.Success) {
-    Write-ColorOutput "✅ GET /api/credits/payable - OK" Green
-    Write-ColorOutput "   Total CPP: $($result.Data.Count)" Yellow
-} else {
-    Write-ColorOutput "❌ GET /api/credits/payable - FALLÓ" Red
-}
-
-# ============================================
-# PRUEBA 7: Transferencias
-# ============================================
-Write-ColorOutput "`n🔄 TRANSFERENCIAS" Blue
-Write-ColorOutput "━" * 50 Blue
-
-$result = Test-Endpoint -Method "GET" -Endpoint "/api/transfers"
-if ($result.Success) {
-    Write-ColorOutput "✅ GET /api/transfers - OK" Green
-    Write-ColorOutput "   Total transferencias: $($result.Data.Count)" Yellow
+    Write-Host "`n📊 RESUMEN DE DATOS CREADOS:" -ForegroundColor Yellow
+    Write-Host "   • Productos: $($products.Count)" -ForegroundColor White
+    Write-Host "   • Clientes: $($customers.Count)" -ForegroundColor White
+    Write-Host "   • Proveedores: $($suppliers.Count)" -ForegroundColor White
+    Write-Host "   • Ventas: $($sales.Count)" -ForegroundColor White
+    Write-Host "   • Compras: $($purchases.Count)" -ForegroundColor White
+    Write-Host "   • Créditos: $($credits.Count)" -ForegroundColor White
+    Write-Host "   • Transferencias: $($transfers.Count)" -ForegroundColor White
+    Write-Host "   • Stock: $($stock.Count) registros" -ForegroundColor White
     
-    if ($result.Data.Count -gt 0) {
-        $transfer = $result.Data[0]
-        Write-ColorOutput "   - Estado: $($transfer.status)" Yellow
-        Write-ColorOutput "   - Items: $($transfer.items.Count)" Yellow
-        
-        if ($transfer.items.Count -gt 0) {
-            $item = $transfer.items[0]
-            Write-ColorOutput "   - Cantidad: $($item.quantity) unidades" Yellow
-            Write-ColorOutput "   ✓ Cantidad en unidades: CORRECTO" Green
-        }
-    }
-} else {
-    Write-ColorOutput "❌ GET /api/transfers - FALLÓ" Red
+    Write-Host "`n🎉 Todos los endpoints funcionando correctamente con Turso!" -ForegroundColor Green
+    Write-Host "🌐 Swagger UI: http://localhost:3000/api-docs`n" -ForegroundColor Cyan
+
+} catch {
+    Write-Host "`n❌ ERROR DURANTE LAS PRUEBAS:" -ForegroundColor Red
+    Write-Host $_.Exception.Message -ForegroundColor Red
+    Write-Host $_.ScriptStackTrace -ForegroundColor DarkGray
+    exit 1
 }
-
-# ============================================
-# RESUMEN
-# ============================================
-Write-ColorOutput "`n📏 VERIFICACIÓN DE UNIDADES DE MEDIDA" Blue
-Write-ColorOutput "━" * 50 Blue
-Write-ColorOutput "Unidades esperadas:" Yellow
-Write-ColorOutput "  • Precios: centavos (1 córdoba = 100 centavos)" Yellow
-Write-ColorOutput "  • Cantidades: unidades enteras" Yellow
-Write-ColorOutput "  • Productos: string (kg, saco, unidad, litro, etc.)" Yellow
-Write-ColorOutput "  • Fechas: ISO 8601 (YYYY-MM-DDTHH:mm:ss.sssZ)" Yellow
-
-Write-ColorOutput "`n╔════════════════════════════════════════════════╗" Green
-Write-ColorOutput "║   PRUEBAS COMPLETADAS                          ║" Green
-Write-ColorOutput "╚════════════════════════════════════════════════╝" Green
