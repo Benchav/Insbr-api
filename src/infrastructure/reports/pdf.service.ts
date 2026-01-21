@@ -1,6 +1,8 @@
 import PDFDocument from 'pdfkit';
 import { Sale, SaleItem } from '../../core/entities/sale.entity.js';
 import { Branch } from '../../core/entities/branch.entity.js';
+import { User } from '../../core/entities/user.entity.js';
+import { Customer } from '../../core/entities/customer.entity.js';
 
 // Constantes de formato de moneda nicaragüense
 const baseCurrencyFormatter = new Intl.NumberFormat("es-NI", {
@@ -13,20 +15,29 @@ const baseCurrencyFormatter = new Intl.NumberFormat("es-NI", {
 const formatCurrency = (value: number) => baseCurrencyFormatter.format(value);
 
 /**
- * Servicio para generar tickets PDF térmicos (80mm)
+ * Servicio para generar tickets PDF térmicos profesionales (80mm)
+ * Optimizado para impresoras térmicas de ticket
  */
 export class PdfService {
     /**
-     * Genera un ticket de venta en formato térmico 80mm
+     * Genera un ticket de venta profesional en formato térmico 80mm
      * @param sale Venta a imprimir
      * @param branch Sucursal donde se realizó la venta
+     * @param cashier Usuario que realizó la venta (opcional)
+     * @param customer Cliente (opcional)
      * @returns Buffer con el PDF generado
      */
-    async generateTicket(sale: Sale, branch: Branch): Promise<Buffer> {
+    async generateTicket(
+        sale: Sale,
+        branch: Branch,
+        cashier?: User,
+        customer?: Customer
+    ): Promise<Buffer> {
         // Calcular totales (convertir de centavos a córdobas)
         const subtotal = sale.items.reduce((acc, item) => acc + (item.unitPrice * item.quantity), 0) / 100;
         const total = sale.total / 100;
         const discount = sale.discount / 100;
+        const tax = sale.tax / 100;
 
         return new Promise((resolve, reject) => {
             try {
@@ -43,10 +54,10 @@ export class PdfService {
 
                 // Dibujar secciones del ticket
                 this.drawTicketHeader(doc, branch);
-                this.drawTicketMeta(doc, sale);
+                this.drawTicketMeta(doc, sale, cashier, customer);
                 this.drawTicketItems(doc, sale.items);
-                this.drawTicketTotals(doc, subtotal, discount, total);
-                this.drawTicketFooter(doc);
+                this.drawTicketTotals(doc, subtotal, discount, tax, total, sale.type, sale.paymentMethod);
+                this.drawTicketFooter(doc, sale);
 
                 doc.end();
             } catch (error) {
@@ -63,18 +74,29 @@ export class PdfService {
         const margin = 10;
         const contentWidth = pageWidth - 2 * margin;
 
-        // Nombre de la empresa (centrado, negrita)
+        // Nombre de la empresa (centrado, negrita, más grande)
         doc.font("Helvetica-Bold")
-            .fontSize(12)
+            .fontSize(14)
+            .text("ERP INSUMOS", margin, doc.y, {
+                width: contentWidth,
+                align: "center"
+            });
+
+        doc.moveDown(0.3);
+
+        // Nombre de la sucursal
+        doc.fontSize(11)
             .text(branch.name.toUpperCase(), margin, doc.y, {
                 width: contentWidth,
                 align: "center"
             });
 
+        doc.moveDown(0.2);
+
         // Dirección
         doc.font("Helvetica")
             .fontSize(8)
-            .text(branch.address, margin, doc.y + 2, {
+            .text(branch.address, margin, doc.y, {
                 width: contentWidth,
                 align: "center"
             });
@@ -85,99 +107,156 @@ export class PdfService {
             align: "center"
         });
 
-        // Línea separadora punteada
+        // Línea separadora doble
         doc.moveDown(0.5);
-        this.drawDottedLine(doc);
+        this.drawDoubleLine(doc);
         doc.moveDown(0.5);
     }
 
     /**
-     * Dibuja la metadata del ticket (fecha, folio, cliente)
+     * Dibuja la metadata del ticket (fecha, folio, cajero, cliente)
      */
-    private drawTicketMeta(doc: PDFKit.PDFDocument, sale: Sale): void {
+    private drawTicketMeta(
+        doc: PDFKit.PDFDocument,
+        sale: Sale,
+        cashier?: User,
+        customer?: Customer
+    ): void {
         const margin = 10;
         const pageWidth = 226;
         const contentWidth = pageWidth - 2 * margin;
 
-        doc.font("Helvetica")
-            .fontSize(8);
+        doc.font("Helvetica-Bold")
+            .fontSize(10)
+            .text("TICKET DE VENTA", margin, doc.y, {
+                width: contentWidth,
+                align: "center"
+            });
 
-        // Folio
-        const folio = sale.id.substring(0, 8).toUpperCase();
-        doc.text(`Folio: ${folio}`, margin, doc.y, { width: contentWidth });
+        doc.moveDown(0.5);
+
+        doc.font("Helvetica")
+            .fontSize(9);
+
+        // Folio (más prominente)
+        const folio = sale.id.substring(sale.id.lastIndexOf('-') + 1).toUpperCase();
+        doc.font("Helvetica-Bold")
+            .text(`No. ${folio}`, margin, doc.y, { width: contentWidth });
+
+        doc.font("Helvetica");
 
         // Fecha y hora
         const saleDate = new Date(sale.createdAt);
         const dateStr = this.formatDate(saleDate);
         const timeStr = this.formatTime(saleDate);
-        doc.text(`Fecha: ${dateStr} ${timeStr}`, margin, doc.y, { width: contentWidth });
+        doc.text(`Fecha: ${dateStr}`, margin, doc.y, { width: contentWidth });
+        doc.text(`Hora: ${timeStr}`, margin, doc.y, { width: contentWidth });
 
-        // Cliente
-        const customerName = sale.customerId || "Público General";
-        doc.text(`Cliente: ${customerName}`, margin, doc.y, { width: contentWidth });
+        // Cajero (si está disponible)
+        if (cashier) {
+            doc.text(`Cajero: ${cashier.name}`, margin, doc.y, { width: contentWidth });
+        }
 
-        // Tipo de venta
-        const saleType = sale.type === 'CASH' ? 'Contado' : 'Crédito';
-        doc.text(`Tipo: ${saleType}`, margin, doc.y, { width: contentWidth });
+        // Cliente (solo si existe y no es venta de contado genérica)
+        if (customer) {
+            doc.text(`Cliente: ${customer.name}`, margin, doc.y, { width: contentWidth });
+            if (customer.phone) {
+                doc.fontSize(8)
+                    .text(`  Tel: ${customer.phone}`, margin, doc.y, { width: contentWidth });
+                doc.fontSize(9);
+            }
+        }
 
-        // Línea separadora punteada
+        // Tipo de venta y método de pago
+        const saleType = sale.type === 'CASH' ? 'CONTADO' : 'CRÉDITO';
+        let paymentInfo = `Tipo: ${saleType}`;
+
+        if (sale.type === 'CASH' && sale.paymentMethod) {
+            const paymentMethods: Record<string, string> = {
+                'CASH': 'Efectivo',
+                'TRANSFER': 'Transferencia',
+                'CHECK': 'Cheque'
+            };
+            paymentInfo += ` - ${paymentMethods[sale.paymentMethod] || sale.paymentMethod}`;
+        }
+
+        doc.text(paymentInfo, margin, doc.y, { width: contentWidth });
+
+        // Línea separadora
         doc.moveDown(0.5);
         this.drawDottedLine(doc);
         doc.moveDown(0.5);
     }
 
     /**
-     * Dibuja los items del ticket
+     * Dibuja los items del ticket con mejor formato
      */
     private drawTicketItems(doc: PDFKit.PDFDocument, items: SaleItem[]): void {
         const margin = 10;
         const pageWidth = 226;
         const contentWidth = pageWidth - 2 * margin;
 
+        // Encabezado de items
         doc.font("Helvetica-Bold")
             .fontSize(8)
-            .text("DESCRIPCIÓN", margin, doc.y, { width: contentWidth });
+            .text("CANT  DESCRIPCIÓN", margin, doc.y, { width: contentWidth * 0.7, continued: true })
+            .text("IMPORTE", { width: contentWidth * 0.3, align: "right" });
 
+        doc.moveDown(0.2);
+        this.drawThinLine(doc);
         doc.moveDown(0.3);
 
         // Iterar sobre los items
         for (const item of items) {
-            doc.font("Helvetica").fontSize(8);
+            doc.font("Helvetica").fontSize(9);
 
-            // Nombre del producto
-            const productName = item.productName.length > 28
-                ? item.productName.substring(0, 25) + "..."
-                : item.productName;
+            // Nombre del producto (truncar si es muy largo)
+            let productName = item.productName;
+            if (productName.length > 26) {
+                productName = productName.substring(0, 23) + "...";
+            }
 
-            doc.text(productName, margin, doc.y, { width: contentWidth });
+            // Cantidad y nombre
+            const qtyText = `${item.quantity}x`;
+            doc.font("Helvetica-Bold")
+                .text(qtyText, margin, doc.y, { width: 20, continued: true });
 
-            // Línea de detalle: cantidad x precio = subtotal
+            doc.font("Helvetica")
+                .text(` ${productName}`, { width: contentWidth - 20 });
+
+            // Precio unitario e importe
             const unitPrice = item.unitPrice / 100;
             const subtotal = item.subtotal / 100;
-            const detailLine = `  ${item.quantity} x ${formatCurrency(unitPrice)}`;
-            const subtotalStr = formatCurrency(subtotal);
 
-            // Calcular posición para alinear el subtotal a la derecha
-            const detailWidth = doc.widthOfString(detailLine);
-            const subtotalWidth = doc.widthOfString(subtotalStr);
-            const spacingWidth = contentWidth - detailWidth - subtotalWidth;
+            const priceText = `    ${formatCurrency(unitPrice)} c/u`;
+            const subtotalText = formatCurrency(subtotal);
 
-            doc.text(detailLine, margin, doc.y, { continued: true, width: detailWidth + spacingWidth });
-            doc.text(subtotalStr, { align: "right" });
+            doc.fontSize(8)
+                .text(priceText, margin, doc.y, { width: contentWidth * 0.65, continued: true })
+                .font("Helvetica-Bold")
+                .text(subtotalText, { width: contentWidth * 0.35, align: "right" });
 
-            doc.moveDown(0.2);
+            doc.moveDown(0.3);
         }
 
-        // Línea separadora punteada
-        doc.moveDown(0.3);
+        // Línea separadora
+        doc.moveDown(0.2);
         this.drawDottedLine(doc);
         doc.moveDown(0.5);
     }
 
     /**
-     * Dibuja los totales del ticket
+     * Dibuja los totales del ticket con formato mejorado
      */
-    private drawTicketTotals(doc: PDFKit.PDFDocument, subtotal: number, discount: number, total: number): void {
+    private drawTicketTotals(
+        doc: PDFKit.PDFDocument,
+        subtotal: number,
+        discount: number,
+        tax: number,
+        total: number,
+        saleType: string,
+        paymentMethod?: string
+    ): void {
         const margin = 10;
         const pageWidth = 226;
         const contentWidth = pageWidth - 2 * margin;
@@ -192,32 +271,89 @@ export class PdfService {
             this.drawTotalLine(doc, "Descuento:", `-${formatCurrency(discount)}`, margin, contentWidth);
         }
 
-        // Total (destacado)
-        doc.font("Helvetica-Bold").fontSize(11);
+        // Impuesto (si aplica)
+        if (tax > 0) {
+            this.drawTotalLine(doc, "IVA:", formatCurrency(tax), margin, contentWidth);
+        }
+
+        // Línea antes del total
+        doc.moveDown(0.3);
+        this.drawThinLine(doc);
+        doc.moveDown(0.3);
+
+        // Total (destacado y más grande)
+        doc.font("Helvetica-Bold").fontSize(12);
         this.drawTotalLine(doc, "TOTAL:", formatCurrency(total), margin, contentWidth);
 
+        // Si es crédito, mostrar información adicional
+        if (saleType === 'CREDIT') {
+            doc.moveDown(0.3);
+            doc.font("Helvetica").fontSize(8);
+            doc.text("** VENTA A CRÉDITO **", margin, doc.y, {
+                width: contentWidth,
+                align: "center"
+            });
+        }
+
         doc.moveDown(0.5);
-        this.drawDottedLine(doc);
+        this.drawDoubleLine(doc);
         doc.moveDown(0.5);
     }
 
     /**
      * Dibuja el pie del ticket
      */
-    private drawTicketFooter(doc: PDFKit.PDFDocument): void {
+    private drawTicketFooter(doc: PDFKit.PDFDocument, sale: Sale): void {
         const margin = 10;
         const pageWidth = 226;
         const contentWidth = pageWidth - 2 * margin;
 
+        // Mensaje de agradecimiento
+        doc.font("Helvetica-Bold")
+            .fontSize(10)
+            .text("¡GRACIAS POR SU COMPRA!", margin, doc.y, {
+                width: contentWidth,
+                align: "center"
+            });
+
+        doc.moveDown(0.5);
+
+        // Políticas
         doc.font("Helvetica")
-            .fontSize(8)
-            .text("¡Gracias por su compra!", margin, doc.y, {
+            .fontSize(7)
+            .text("Políticas de devolución:", margin, doc.y, {
                 width: contentWidth,
                 align: "center"
             });
 
         doc.fontSize(7)
-            .text("No se aceptan devoluciones después de 24 horas", margin, doc.y + 2, {
+            .text("- Devoluciones dentro de 24 horas", margin, doc.y + 2, {
+                width: contentWidth,
+                align: "center"
+            });
+
+        doc.text("- Presentar este ticket", margin, doc.y + 2, {
+            width: contentWidth,
+            align: "center"
+        });
+
+        // Estado de la venta (si está cancelada)
+        if (sale.status === 'CANCELLED') {
+            doc.moveDown(0.5);
+            doc.font("Helvetica-Bold")
+                .fontSize(10)
+                .text("*** VENTA CANCELADA ***", margin, doc.y, {
+                    width: contentWidth,
+                    align: "center"
+                });
+        }
+
+        doc.moveDown(0.5);
+
+        // Información adicional
+        doc.font("Helvetica")
+            .fontSize(6)
+            .text("Sistema ERP Insumos v2.0", margin, doc.y, {
                 width: contentWidth,
                 align: "center"
             });
@@ -244,6 +380,50 @@ export class PdfService {
     }
 
     /**
+     * Dibuja una línea sólida delgada
+     */
+    private drawThinLine(doc: PDFKit.PDFDocument): void {
+        const margin = 10;
+        const pageWidth = 226;
+        const y = doc.y;
+
+        doc.save();
+        doc.strokeColor("#000000")
+            .lineWidth(0.5)
+            .moveTo(margin, y)
+            .lineTo(pageWidth - margin, y)
+            .stroke();
+        doc.restore();
+
+        doc.moveDown(0.1);
+    }
+
+    /**
+     * Dibuja una línea doble
+     */
+    private drawDoubleLine(doc: PDFKit.PDFDocument): void {
+        const margin = 10;
+        const pageWidth = 226;
+        const y = doc.y;
+
+        doc.save();
+        doc.strokeColor("#000000")
+            .lineWidth(1)
+            .moveTo(margin, y)
+            .lineTo(pageWidth - margin, y)
+            .stroke();
+
+        doc.strokeColor("#000000")
+            .lineWidth(1)
+            .moveTo(margin, y + 2)
+            .lineTo(pageWidth - margin, y + 2)
+            .stroke();
+        doc.restore();
+
+        doc.moveDown(0.2);
+    }
+
+    /**
      * Dibuja una línea de total con label y valor alineado a la derecha
      */
     private drawTotalLine(doc: PDFKit.PDFDocument, label: string, value: string, margin: number, contentWidth: number): void {
@@ -251,8 +431,8 @@ export class PdfService {
         const valueWidth = doc.widthOfString(value);
         const spacingWidth = contentWidth - labelWidth - valueWidth;
 
-        doc.text(label, margin, doc.y, { continued: true, width: labelWidth + spacingWidth });
-        doc.text(value, { align: "right" });
+        doc.text(label, margin, doc.y, { continued: true, width: labelWidth + spacingWidth })
+            .text(value, { align: "right" });
     }
 
     /**
@@ -276,3 +456,4 @@ export class PdfService {
         return `${hours}:${minutes} ${ampm}`;
     }
 }
+

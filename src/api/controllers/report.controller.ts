@@ -76,8 +76,35 @@ export function createReportController(
                 return res.status(404).json({ error: 'Sucursal no encontrada' });
             }
 
-            // Generar el PDF
-            const pdfBuffer = await pdfService.generateTicket(sale, branch);
+            // Buscar el cajero que realizó la venta (opcional)
+            let cashier = undefined;
+            if (sale.createdBy) {
+                try {
+                    const userRepo = new (await import('../../infrastructure/turso/repositories/user.repository.turso.js')).UserRepositoryTurso();
+                    cashier = await userRepo.findById(sale.createdBy);
+                } catch (error) {
+                    console.log('No se pudo obtener información del cajero');
+                }
+            }
+
+            // Buscar el cliente (opcional)
+            let customer = undefined;
+            if (sale.customerId) {
+                try {
+                    const customerRepo = new (await import('../../infrastructure/turso/repositories/customer.repository.turso.js')).CustomerRepositoryTurso();
+                    customer = await customerRepo.findById(sale.customerId);
+                } catch (error) {
+                    console.log('No se pudo obtener información del cliente');
+                }
+            }
+
+            // Generar el PDF con toda la información
+            const pdfBuffer = await pdfService.generateTicket(
+                sale,
+                branch,
+                cashier || undefined,
+                customer || undefined
+            );
 
             // Configurar headers para visualización directa (para imprimir)
             res.setHeader('Content-Type', 'application/pdf');
