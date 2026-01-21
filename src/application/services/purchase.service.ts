@@ -95,4 +95,34 @@ export class PurchaseService {
     ): Promise<Purchase[]> {
         return this.purchaseRepository.findByBranch(branchId, filters);
     }
+
+    /**
+     * Actualiza información de una compra
+     * Por seguridad, solo permite editar notas y número de factura
+     * No permite modificar items ni montos para mantener integridad de datos
+     */
+    async updatePurchase(
+        purchaseId: string,
+        data: { notes?: string; invoiceNumber?: string }
+    ): Promise<Purchase> {
+        // Validar que la compra existe
+        const purchase = await this.purchaseRepository.findById(purchaseId);
+        if (!purchase) {
+            throw new Error('Compra no encontrada');
+        }
+
+        // Validar que sea reciente (últimos 7 días) para mayor seguridad
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+        if (purchase.createdAt < sevenDaysAgo) {
+            throw new Error('Solo se pueden editar compras de los últimos 7 días');
+        }
+
+        // Actualizar solo campos permitidos
+        return this.purchaseRepository.update(purchaseId, {
+            notes: data.notes,
+            invoiceNumber: data.invoiceNumber
+        });
+    }
 }

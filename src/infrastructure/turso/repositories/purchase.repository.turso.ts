@@ -125,6 +125,40 @@ export class PurchaseRepositoryTurso implements IPurchaseRepository {
         return purchases;
     }
 
+    async update(id: string, data: Partial<Purchase>): Promise<Purchase> {
+        const updates: string[] = [];
+        const args: any[] = [];
+
+        // Solo permitimos actualizar notas e invoice_number por seguridad
+        if (data.notes !== undefined) {
+            updates.push('notes = ?');
+            args.push(data.notes);
+        }
+
+        if (data.invoiceNumber !== undefined) {
+            updates.push('invoice_number = ?');
+            args.push(data.invoiceNumber);
+        }
+
+        if (updates.length === 0) {
+            throw new Error('No hay campos para actualizar');
+        }
+
+        args.push(id);
+
+        await tursoClient.execute({
+            sql: `UPDATE purchases SET ${updates.join(', ')} WHERE id = ?`,
+            args
+        });
+
+        const updated = await this.findById(id);
+        if (!updated) {
+            throw new Error('Compra no encontrada después de actualizar');
+        }
+
+        return updated;
+    }
+
     async delete(id: string): Promise<void> {
         await tursoClient.execute({
             sql: 'DELETE FROM purchases WHERE id = ?',

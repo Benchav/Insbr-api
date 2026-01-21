@@ -47,6 +47,17 @@ export class PurchaseRepositoryImpl implements IPurchaseRepository {
             .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     }
 
+    async update(id: string, data: Partial<Purchase>): Promise<Purchase> {
+        const purchase = storage.purchases.get(id);
+        if (!purchase) {
+            throw new Error('Compra no encontrada');
+        }
+
+        const updated = { ...purchase, ...data };
+        storage.purchases.set(id, updated);
+        return updated;
+    }
+
     async delete(id: string): Promise<void> {
         storage.purchases.delete(id);
     }

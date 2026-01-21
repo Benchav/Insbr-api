@@ -9,5 +9,6 @@ export interface IPurchaseRepository {
         supplierId?: string;
     }): Promise<Purchase[]>;
     findBySupplier(supplierId: string): Promise<Purchase[]>;
+    update(id: string, data: Partial<Purchase>): Promise<Purchase>;
     delete(id: string): Promise<void>;
 }

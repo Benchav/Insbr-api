@@ -120,5 +120,77 @@ export function createPurchaseController(purchaseService: PurchaseService): Rout
         }
     });
 
+    /**
+     * @swagger
+     * /api/purchases/{id}:
+     *   put:
+     *     summary: Editar compra
+     *     description: Permite editar notas y número de factura de compras recientes (últimos 7 días). Solo ADMIN.
+     *     tags: [Purchases]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: ID de la compra
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             properties:
+     *               notes:
+     *                 type: string
+     *                 description: Notas de la compra
+     *               invoiceNumber:
+     *                 type: string
+     *                 description: Número de factura
+     *     responses:
+     *       200:
+     *         description: Compra actualizada exitosamente
+     *       400:
+     *         description: Error - Compra muy antigua o campos inválidos
+     *       403:
+     *         description: Solo ADMIN puede editar compras
+     *       404:
+     *         description: Compra no encontrada
+     */
+    router.put('/:id', async (req: Request, res: Response) => {
+        try {
+            if (!req.user) throw new Error('No autorizado');
+
+            // Solo ADMIN puede editar compras
+            if (req.user.role !== 'ADMIN') {
+                return res.status(403).json({
+                    error: 'No autorizado',
+                    message: 'Solo los administradores pueden editar compras'
+                });
+            }
+
+            const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+            const { notes, invoiceNumber } = req.body;
+
+            const purchase = await purchaseService.updatePurchase(id, {
+                notes,
+                invoiceNumber
+            });
+
+            res.json({
+                message: 'Compra actualizada exitosamente',
+                purchase
+            });
+        } catch (error: any) {
+            if (error.message.includes('no encontrada')) {
+                res.status(404).json({ error: error.message });
+            } else {
+                res.status(400).json({ error: error.message });
+            }
+        }
+    });
+
     return router;
 }

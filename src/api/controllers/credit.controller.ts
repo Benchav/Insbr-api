@@ -158,5 +158,56 @@ export function createCreditController(creditService: CreditService): Router {
         }
     });
 
+    /**
+     * @swagger
+     * /api/credits/{id}:
+     *   delete:
+     *     summary: Cancelar cuenta de crédito
+     *     description: Cancela una cuenta de crédito que no tenga pagos registrados. Solo ADMIN.
+     *     tags: [Credits]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: ID de la cuenta de crédito
+     *     responses:
+     *       200:
+     *         description: Cuenta cancelada exitosamente
+     *       400:
+     *         description: Error - Cuenta tiene pagos registrados
+     *       403:
+     *         description: Solo ADMIN puede cancelar cuentas
+     *       404:
+     *         description: Cuenta no encontrada
+     */
+    router.delete('/:id', async (req: Request, res: Response) => {
+        try {
+            if (!req.user) throw new Error('No autorizado');
+
+            // Solo ADMIN puede cancelar cuentas de crédito
+            if (req.user.role !== 'ADMIN') {
+                return res.status(403).json({
+                    error: 'No autorizado',
+                    message: 'Solo los administradores pueden cancelar cuentas de crédito'
+                });
+            }
+
+            const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+            await creditService.cancelCreditAccount(id);
+
+            res.json({ message: 'Cuenta de crédito cancelada exitosamente' });
+        } catch (error: any) {
+            if (error.message.includes('no encontrada')) {
+                res.status(404).json({ error: error.message });
+            } else {
+                res.status(400).json({ error: error.message });
+            }
+        }
+    });
+
     return router;
 }
