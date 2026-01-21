@@ -116,37 +116,35 @@ export function createApp(): Express {
 
   // ========== RUTAS PROTEGIDAS CON RBAC ==========
 
-  // Productos - ADMIN y SELLER pueden ver el catálogo
-  app.use('/api/products', authenticate, authorize(['ADMIN', 'SELLER']), createProductController(productService));
+  // Productos - Todos pueden ver, solo ADMIN y GERENTE pueden modificar
+  app.use('/api/products', authenticate, authorize(['ADMIN', 'GERENTE', 'CAJERO']), createProductController(productService));
 
-  // Clientes - ADMIN y SELLER pueden gestionar
-  app.use('/api/customers', authenticate, authorize(['ADMIN', 'SELLER']), createCustomerController(customerService));
+  // Clientes - Todos pueden ver, solo ADMIN y GERENTE pueden modificar
+  app.use('/api/customers', authenticate, authorize(['ADMIN', 'GERENTE', 'CAJERO']), createCustomerController(customerService));
 
-  // Proveedores - Solo ADMIN
-  app.use('/api/suppliers', authenticate, authorize(['ADMIN']), createSupplierController(supplierService));
+  // Proveedores - Solo ADMIN y GERENTE
+  app.use('/api/suppliers', authenticate, authorize(['ADMIN', 'GERENTE']), createSupplierController(supplierService));
 
-  // Ventas - ADMIN y SELLER pueden vender
-  app.use('/api/sales', authenticate, authorize(['ADMIN', 'SELLER']), createSaleController(saleService));
+  // Ventas - Todos pueden vender
+  app.use('/api/sales', authenticate, authorize(['ADMIN', 'GERENTE', 'CAJERO']), createSaleController(saleService));
 
-  // Reportes - Autenticación requerida, autorización granular dentro del controlador
-  // SELLER puede: imprimir tickets PDF
-  // ADMIN puede: todo (tickets + descargar Excel)
+  // Reportes - Todos pueden ver tickets, solo ADMIN y GERENTE pueden generar reportes Excel
   app.use('/api/reports', authenticate, createReportController(saleService, pdfService, excelService, branchRepository, cashMovementRepository));
 
-  // Compras - Solo ADMIN
-  app.use('/api/purchases', authenticate, authorize(['ADMIN']), createPurchaseController(purchaseService));
+  // Compras - Solo ADMIN y GERENTE
+  app.use('/api/purchases', authenticate, authorize(['ADMIN', 'GERENTE']), createPurchaseController(purchaseService));
 
-  // Créditos - Solo ADMIN
-  app.use('/api/credits', authenticate, authorize(['ADMIN']), createCreditController(creditService));
+  // Créditos - Todos pueden ver y registrar abonos
+  app.use('/api/credits', authenticate, authorize(['ADMIN', 'GERENTE', 'CAJERO']), createCreditController(creditService));
 
-  // Transferencias - Solo ADMIN
-  app.use('/api/transfers', authenticate, authorize(['ADMIN']), createTransferController(transferService));
+  // Transferencias - Solo ADMIN y GERENTE
+  app.use('/api/transfers', authenticate, authorize(['ADMIN', 'GERENTE']), createTransferController(transferService));
 
-  // Caja - ADMIN y SELLER pueden consultar, solo ADMIN puede registrar movimientos manuales
-  app.use('/api/cash', authenticate, authorize(['ADMIN', 'SELLER']), createCashController(cashService));
+  // Caja - Todos pueden consultar, solo ADMIN y GERENTE pueden registrar movimientos manuales
+  app.use('/api/cash', authenticate, authorize(['ADMIN', 'GERENTE', 'CAJERO']), createCashController(cashService));
 
-  // Stock - ADMIN y SELLER pueden consultar, solo ADMIN puede ajustar
-  app.use('/api/stock', authenticate, authorize(['ADMIN', 'SELLER']), createStockController(stockService));
+  // Stock - Todos pueden consultar, solo ADMIN y GERENTE pueden ajustar
+  app.use('/api/stock', authenticate, authorize(['ADMIN', 'GERENTE', 'CAJERO']), createStockController(stockService));
 
   // Swagger Documentation
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

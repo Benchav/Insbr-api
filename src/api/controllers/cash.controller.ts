@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { CashService } from '../../application/services/cash.service.js';
+import { getEffectiveBranchId } from '../../infrastructure/web/helpers/branch-access.helper.js';
 
 const registerMovementSchema = z.object({
     type: z.enum(['INCOME', 'EXPENSE']),
@@ -65,7 +66,11 @@ export function createCashController(cashService: CashService): Router {
             const dateParam = req.query.date;
             const date = dateParam ? new Date(dateParam as string) : new Date();
 
-            const balance = await cashService.getDailyBalance(req.user.branchId, date);
+            // ADMIN puede especificar branchId en query
+            const queryBranchId = req.query.branchId as string | undefined;
+            const effectiveBranchId = getEffectiveBranchId(req.user, queryBranchId);
+
+            const balance = await cashService.getDailyBalance(effectiveBranchId || req.user.branchId, date);
             res.json(balance);
         } catch (error: any) {
             res.status(500).json({ error: error.message });
@@ -107,7 +112,11 @@ export function createCashController(cashService: CashService): Router {
             const startDate = startDateParam ? new Date(startDateParam) : new Date(new Date().setHours(0, 0, 0, 0));
             const endDate = endDateParam ? new Date(endDateParam) : new Date(new Date().setHours(23, 59, 59, 999));
 
-            const movements = await cashService.getCashFlow(req.user.branchId, startDate, endDate);
+            // ADMIN puede especificar branchId en query
+            const queryBranchId = req.query.branchId as string | undefined;
+            const effectiveBranchId = getEffectiveBranchId(req.user, queryBranchId);
+
+            const movements = await cashService.getCashFlow(effectiveBranchId || req.user.branchId, startDate, endDate);
             res.json(movements);
         } catch (error: any) {
             res.status(500).json({ error: error.message });
@@ -165,11 +174,11 @@ export function createCashController(cashService: CashService): Router {
         try {
             if (!req.user) throw new Error('No autorizado');
 
-            // Solo ADMIN puede registrar movimientos manuales
-            if (req.user.role !== 'ADMIN') {
+            // Solo ADMIN y GERENTE pueden registrar movimientos manuales
+            if (req.user.role !== 'ADMIN' && req.user.role !== 'GERENTE') {
                 res.status(403).json({
                     error: 'No autorizado',
-                    message: 'Solo los administradores pueden registrar movimientos manuales de caja'
+                    message: 'Solo los administradores y gerentes pueden registrar movimientos manuales de caja'
                 });
                 return;
             }
@@ -234,7 +243,11 @@ export function createCashController(cashService: CashService): Router {
             const dateParam = req.query.date;
             const date = dateParam ? new Date(dateParam as string) : new Date();
 
-            const income = await cashService.getDailyIncome(req.user.branchId, date);
+            // ADMIN puede especificar branchId en query
+            const queryBranchId = req.query.branchId as string | undefined;
+            const effectiveBranchId = getEffectiveBranchId(req.user, queryBranchId);
+
+            const income = await cashService.getDailyIncome(effectiveBranchId || req.user.branchId, date);
             res.json({ date, income });
         } catch (error: any) {
             res.status(500).json({ error: error.message });

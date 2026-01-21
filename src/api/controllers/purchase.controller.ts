@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { PurchaseService } from '../../application/services/purchase.service.js';
+import { getEffectiveBranchId } from '../../infrastructure/web/helpers/branch-access.helper.js';
 
 const createPurchaseSchema = z.object({
     supplierId: z.string(),
@@ -113,7 +114,12 @@ export function createPurchaseController(purchaseService: PurchaseService): Rout
     router.get('/', async (req: Request, res: Response) => {
         try {
             if (!req.user) throw new Error('No autorizado');
-            const purchases = await purchaseService.listPurchasesByBranch(req.user.branchId);
+
+            // ADMIN puede especificar branchId en query
+            const queryBranchId = req.query.branchId as string | undefined;
+            const effectiveBranchId = getEffectiveBranchId(req.user, queryBranchId);
+
+            const purchases = await purchaseService.listPurchasesByBranch(effectiveBranchId || req.user.branchId);
             res.json(purchases);
         } catch (error: any) {
             res.status(500).json({ error: error.message });

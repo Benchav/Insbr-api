@@ -15,7 +15,7 @@ const registerSchema = z.object({
     username: z.string().min(3, 'El username debe tener al menos 3 caracteres'),
     password: z.string().min(3, 'El password debe tener al menos 3 caracteres'),
     name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres'),
-    role: z.enum(['ADMIN', 'SELLER']),
+    role: z.enum(['ADMIN', 'GERENTE', 'CAJERO']),
     branchId: z.string().min(1, 'El branchId es requerido')
 });
 
@@ -125,8 +125,8 @@ export function createAuthController(authService: AuthService): Router {
      *                 example: Juan Pérez
      *               role:
      *                 type: string
-     *                 enum: [ADMIN, SELLER]
-     *                 example: SELLER
+     *                 enum: [ADMIN, GERENTE, CAJERO]
+     *                 example: GERENTE
      *               branchId:
      *                 type: string
      *                 example: BRANCH-DIR-001
@@ -246,7 +246,7 @@ export function createAuthController(authService: AuthService): Router {
      *                 type: string
      *               role:
      *                 type: string
-     *                 enum: [ADMIN, SELLER]
+     *                 enum: [ADMIN, GERENTE, CAJERO]
      *               branchId:
      *                 type: string
      *               isActive:
@@ -265,7 +265,7 @@ export function createAuthController(authService: AuthService): Router {
         username: z.string().min(3).optional(),
         password: z.string().min(3).optional(),
         name: z.string().min(3).optional(),
-        role: z.enum(['ADMIN', 'SELLER']).optional(),
+        role: z.enum(['ADMIN', 'GERENTE', 'CAJERO']).optional(),
         branchId: z.string().min(1).optional(),
         isActive: z.boolean().optional()
     });

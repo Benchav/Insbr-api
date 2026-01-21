@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { StockService } from '../../application/services/stock.service.js';
+import { getEffectiveBranchId } from '../../infrastructure/web/helpers/branch-access.helper.js';
 
 const adjustStockSchema = z.object({
     stockId: z.string(),
@@ -52,7 +53,11 @@ export function createStockController(stockService: StockService): Router {
         try {
             if (!req.user) throw new Error('No autorizado');
 
-            const stock = await stockService.getStockByBranch(req.user.branchId);
+            // ADMIN puede especificar branchId en query
+            const queryBranchId = req.query.branchId as string | undefined;
+            const effectiveBranchId = getEffectiveBranchId(req.user, queryBranchId);
+
+            const stock = await stockService.getStockByBranch(effectiveBranchId || req.user.branchId);
             res.json(stock);
         } catch (error: any) {
             res.status(500).json({ error: error.message });
@@ -94,7 +99,11 @@ export function createStockController(stockService: StockService): Router {
         try {
             if (!req.user) throw new Error('No autorizado');
 
-            const alerts = await stockService.getLowStockAlerts(req.user.branchId);
+            // ADMIN puede especificar branchId en query
+            const queryBranchId = req.query.branchId as string | undefined;
+            const effectiveBranchId = getEffectiveBranchId(req.user, queryBranchId);
+
+            const alerts = await stockService.getLowStockAlerts(effectiveBranchId || req.user.branchId);
             res.json(alerts);
         } catch (error: any) {
             res.status(500).json({ error: error.message });
@@ -177,11 +186,11 @@ export function createStockController(stockService: StockService): Router {
         try {
             if (!req.user) throw new Error('No autorizado');
 
-            // Solo ADMIN puede ajustar stock
-            if (req.user.role !== 'ADMIN') {
+            // Solo ADMIN y GERENTE pueden ajustar stock
+            if (req.user.role !== 'ADMIN' && req.user.role !== 'GERENTE') {
                 res.status(403).json({
                     error: 'No autorizado',
-                    message: 'Solo los administradores pueden ajustar el inventario'
+                    message: 'Solo los administradores y gerentes pueden ajustar el inventario'
                 });
                 return;
             }
@@ -235,9 +244,14 @@ export function createStockController(stockService: StockService): Router {
         try {
             if (!req.user) throw new Error('No autorizado');
 
-            const totalUnits = await stockService.getTotalUnits(req.user.branchId);
-            const totalValue = await stockService.getInventoryValue(req.user.branchId);
-            const alerts = await stockService.getLowStockAlerts(req.user.branchId);
+            // ADMIN puede especificar branchId en query
+            const queryBranchId = req.query.branchId as string | undefined;
+            const effectiveBranchId = getEffectiveBranchId(req.user, queryBranchId);
+            const branchId = effectiveBranchId || req.user.branchId;
+
+            const totalUnits = await stockService.getTotalUnits(branchId);
+            const totalValue = await stockService.getInventoryValue(branchId);
+            const alerts = await stockService.getLowStockAlerts(branchId);
 
             res.json({
                 totalUnits,

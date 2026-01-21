@@ -62,7 +62,7 @@ export class AuthService {
         username: string;
         password: string;
         name: string;
-        role: 'ADMIN' | 'SELLER';
+        role: 'ADMIN' | 'GERENTE' | 'CAJERO';
         branchId: string;
     }): Promise<Omit<User, 'password'>> {
         // Verificar si el username ya existe
@@ -116,7 +116,7 @@ export class AuthService {
         username?: string;
         password?: string;
         name?: string;
-        role?: 'ADMIN' | 'SELLER';
+        role?: 'ADMIN' | 'GERENTE' | 'CAJERO';
         branchId?: string;
         isActive?: boolean;
     }): Promise<Omit<User, 'password'>> {

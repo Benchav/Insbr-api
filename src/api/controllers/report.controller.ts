@@ -56,7 +56,7 @@ export function createReportController(
      *       500:
      *         description: Error al generar el ticket
      */
-    router.get('/sales/:id/ticket', authorize(['ADMIN', 'SELLER']), async (req: Request, res: Response) => {
+    router.get('/sales/:id/ticket', authorize(['ADMIN', 'GERENTE', 'CAJERO']), async (req: Request, res: Response) => {
         try {
             if (!req.user) {
                 return res.status(401).json({ error: 'No autorizado' });
@@ -132,7 +132,7 @@ export function createReportController(
      *       500:
      *         description: Error al generar el reporte
      */
-    router.get('/sales/excel', authorize(['ADMIN']), async (req: Request, res: Response) => {
+    router.get('/sales/excel', authorize(['ADMIN', 'GERENTE']), async (req: Request, res: Response) => {
         try {
             if (!req.user) {
                 return res.status(401).json({ error: 'No autorizado' });
@@ -228,7 +228,7 @@ export function createReportController(
      *       500:
      *         description: Error al generar el reporte
      */
-    router.get('/cash/excel', authorize(['ADMIN']), async (req: Request, res: Response) => {
+    router.get('/cash/excel', authorize(['ADMIN', 'GERENTE']), async (req: Request, res: Response) => {
         try {
             if (!req.user) {
                 return res.status(401).json({ error: 'No autorizado' });

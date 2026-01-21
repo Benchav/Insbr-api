@@ -129,45 +129,59 @@ export async function seedData(): Promise<void> {
     const passwordHash = await bcrypt.hash('123', 10); // Hash del password "123"
 
     const users = [
+        // ADMIN Global - Puede ver todas las sucursales
         {
-            id: 'USER-DIR-ADMIN',
-            username: 'admin_diriamba',
+            id: 'USER-ADMIN-GLOBAL',
+            username: 'admin',
             password: passwordHash,
-            name: 'Admin Diriamba',
+            name: 'Admin Global',
             role: 'ADMIN' as const,
+            branchId: diriamba.id, // Sucursal principal pero puede ver todas
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+        },
+        // Diriamba - Gerente y Cajero
+        {
+            id: 'USER-DIR-GERENTE',
+            username: 'gerente_diriamba',
+            password: passwordHash,
+            name: 'Gerente Diriamba',
+            role: 'GERENTE' as const,
             branchId: diriamba.id,
             isActive: true,
             createdAt: new Date(),
             updatedAt: new Date()
         },
         {
-            id: 'USER-DIR-SELLER',
+            id: 'USER-DIR-CAJERO',
             username: 'cajero_diriamba',
             password: passwordHash,
             name: 'Cajero Diriamba',
-            role: 'SELLER' as const,
+            role: 'CAJERO' as const,
             branchId: diriamba.id,
             isActive: true,
             createdAt: new Date(),
             updatedAt: new Date()
         },
+        // Jinotepe - Gerente y Cajero
         {
-            id: 'USER-JIN-ADMIN',
-            username: 'admin_jinotepe',
+            id: 'USER-JIN-GERENTE',
+            username: 'gerente_jinotepe',
             password: passwordHash,
-            name: 'Admin Jinotepe',
-            role: 'ADMIN' as const,
+            name: 'Gerente Jinotepe',
+            role: 'GERENTE' as const,
             branchId: jinotepe.id,
             isActive: true,
             createdAt: new Date(),
             updatedAt: new Date()
         },
         {
-            id: 'USER-JIN-SELLER',
+            id: 'USER-JIN-CAJERO',
             username: 'cajero_jinotepe',
             password: passwordHash,
             name: 'Cajero Jinotepe',
-            role: 'SELLER' as const,
+            role: 'CAJERO' as const,
             branchId: jinotepe.id,
             isActive: true,
             createdAt: new Date(),

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { SaleService } from '../../application/services/sale.service.js';
+import { getEffectiveBranchId } from '../../infrastructure/web/helpers/branch-access.helper.js';
 
 const createSaleSchema = z.object({
     customerId: z.string().optional(),
@@ -103,10 +104,16 @@ export function createSaleController(saleService: SaleService): Router {
      * @swagger
      * /api/sales:
      *   get:
-     *     summary: Listar ventas de mi sucursal
+     *     summary: Listar ventas (ADMIN puede filtrar por sucursal)
      *     tags: [Sales]
      *     security:
      *       - bearerAuth: []
+     *     parameters:
+     *       - in: query
+     *         name: branchId
+     *         schema:
+     *           type: string
+     *         description: ID de sucursal (solo para ADMIN, opcional. Use 'all' para todas)
      *     responses:
      *       200:
      *         description: Lista de ventas
@@ -116,7 +123,12 @@ export function createSaleController(saleService: SaleService): Router {
     router.get('/', async (req: Request, res: Response) => {
         try {
             if (!req.user) throw new Error('No autorizado');
-            const sales = await saleService.listSalesByBranch(req.user.branchId);
+
+            // ADMIN puede especificar branchId en query, otros usan su sucursal
+            const queryBranchId = req.query.branchId as string | undefined;
+            const effectiveBranchId = getEffectiveBranchId(req.user, queryBranchId);
+
+            const sales = await saleService.listSalesByBranch(effectiveBranchId || req.user.branchId);
             res.json(sales);
         } catch (error: any) {
             res.status(500).json({ error: error.message });
@@ -128,7 +140,7 @@ export function createSaleController(saleService: SaleService): Router {
      * /api/sales/{id}/cancel:
      *   post:
      *     summary: Cancelar venta
-     *     description: Cancela una venta del día actual y revierte stock, caja y créditos. Solo ADMIN.
+     *     description: Cancela una venta del día actual y revierte stock, caja y créditos. Solo ADMIN y GERENTE.
      *     tags: [Sales]
      *     security:
      *       - bearerAuth: []
@@ -145,7 +157,7 @@ export function createSaleController(saleService: SaleService): Router {
      *       400:
      *         description: Error - No se puede cancelar (fuera de fecha, con pagos, etc.)
      *       403:
-     *         description: Solo ADMIN puede cancelar ventas
+     *         description: Solo ADMIN y GERENTE pueden cancelar ventas
      *       404:
      *         description: Venta no encontrada
      */
@@ -153,11 +165,11 @@ export function createSaleController(saleService: SaleService): Router {
         try {
             if (!req.user) throw new Error('No autorizado');
 
-            // Solo ADMIN puede cancelar ventas
-            if (req.user.role !== 'ADMIN') {
+            // Solo ADMIN y GERENTE pueden cancelar ventas
+            if (req.user.role !== 'ADMIN' && req.user.role !== 'GERENTE') {
                 return res.status(403).json({
                     error: 'No autorizado',
-                    message: 'Solo los administradores pueden cancelar ventas'
+                    message: 'Solo los administradores y gerentes pueden cancelar ventas'
                 });
             }
 

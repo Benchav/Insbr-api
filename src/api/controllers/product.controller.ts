@@ -206,6 +206,14 @@ export function createProductController(productService: ProductService): Router 
      */
     router.post('/', async (req: Request, res: Response) => {
         try {
+            // Solo ADMIN y GERENTE pueden crear productos
+            if (!req.user || (req.user.role !== 'ADMIN' && req.user.role !== 'GERENTE')) {
+                return res.status(403).json({
+                    error: 'No autorizado',
+                    message: 'Solo administradores y gerentes pueden crear productos'
+                });
+            }
+
             const data = createProductSchema.parse(req.body);
             const product = await productService.createProduct(data);
             res.status(201).json(product);
@@ -271,6 +279,14 @@ export function createProductController(productService: ProductService): Router 
      */
     router.put('/:id', async (req: Request, res: Response) => {
         try {
+            // Solo ADMIN y GERENTE pueden actualizar productos
+            if (!req.user || (req.user.role !== 'ADMIN' && req.user.role !== 'GERENTE')) {
+                return res.status(403).json({
+                    error: 'No autorizado',
+                    message: 'Solo administradores y gerentes pueden actualizar productos'
+                });
+            }
+
             const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
             const data = updateProductSchema.parse(req.body);
             const product = await productService.updateProduct(id, data);
@@ -308,6 +324,14 @@ export function createProductController(productService: ProductService): Router 
      */
     router.delete('/:id', async (req: Request, res: Response) => {
         try {
+            // Solo ADMIN puede eliminar productos
+            if (!req.user || req.user.role !== 'ADMIN') {
+                return res.status(403).json({
+                    error: 'No autorizado',
+                    message: 'Solo administradores pueden eliminar productos'
+                });
+            }
+
             const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
             await productService.deleteProduct(id);
             res.status(204).send();

@@ -59,7 +59,7 @@ export class UserRepositoryTurso implements UserRepository {
             username: row.username as string,
             password: row.password as string,
             name: row.name as string,
-            role: row.role as 'ADMIN' | 'SELLER',
+            role: row.role as 'ADMIN' | 'GERENTE' | 'CAJERO',
             branchId: row.branch_id as string,
             isActive: Boolean(row.is_active),
             createdAt: new Date(row.created_at as string),

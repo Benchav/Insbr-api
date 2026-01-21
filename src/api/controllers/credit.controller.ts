@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { CreditService } from '../../application/services/credit.service.js';
+import { getEffectiveBranchId } from '../../infrastructure/web/helpers/branch-access.helper.js';
 
 const registerPaymentSchema = z.object({
     creditAccountId: z.string(),
@@ -50,8 +51,12 @@ export function createCreditController(creditService: CreditService): Router {
             const typeValue = Array.isArray(type) ? type[0] : type;
             const statusValue = Array.isArray(status) ? status[0] : status;
 
+            // ADMIN puede especificar branchId en query
+            const queryBranchId = req.query.branchId as string | undefined;
+            const effectiveBranchId = getEffectiveBranchId(req.user, queryBranchId);
+
             const accounts = await creditService.listCreditAccountsByBranch(
-                req.user.branchId,
+                effectiveBranchId || req.user.branchId,
                 {
                     type: typeValue as 'CXC' | 'CPP' | undefined,
                     status: statusValue as any
@@ -163,7 +168,7 @@ export function createCreditController(creditService: CreditService): Router {
      * /api/credits/{id}:
      *   delete:
      *     summary: Cancelar cuenta de crédito
-     *     description: Cancela una cuenta de crédito que no tenga pagos registrados. Solo ADMIN.
+     *     description: Cancela una cuenta de crédito que no tenga pagos registrados. Solo ADMIN y GERENTE.
      *     tags: [Credits]
      *     security:
      *       - bearerAuth: []
@@ -180,7 +185,7 @@ export function createCreditController(creditService: CreditService): Router {
      *       400:
      *         description: Error - Cuenta tiene pagos registrados
      *       403:
-     *         description: Solo ADMIN puede cancelar cuentas
+     *         description: Solo ADMIN y GERENTE pueden cancelar cuentas
      *       404:
      *         description: Cuenta no encontrada
      */
@@ -188,11 +193,11 @@ export function createCreditController(creditService: CreditService): Router {
         try {
             if (!req.user) throw new Error('No autorizado');
 
-            // Solo ADMIN puede cancelar cuentas de crédito
-            if (req.user.role !== 'ADMIN') {
+            // Solo ADMIN y GERENTE pueden cancelar cuentas de crédito
+            if (req.user.role !== 'ADMIN' && req.user.role !== 'GERENTE') {
                 return res.status(403).json({
                     error: 'No autorizado',
-                    message: 'Solo los administradores pueden cancelar cuentas de crédito'
+                    message: 'Solo los administradores y gerentes pueden cancelar cuentas de crédito'
                 });
             }
 

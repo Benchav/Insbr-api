@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { TransferService } from '../../application/services/transfer.service.js';
+import { getEffectiveBranchId } from '../../infrastructure/web/helpers/branch-access.helper.js';
 
 const createTransferSchema = z.object({
     toBranchId: z.string(),
@@ -193,7 +194,12 @@ export function createTransferController(transferService: TransferService): Rout
             const filters: any = {};
             if (req.query.status) filters.status = req.query.status;
             if (req.query.direction) filters.direction = req.query.direction;
-            const transfers = await transferService.listTransfersByBranch(req.user.branchId, filters);
+
+            // ADMIN puede especificar branchId en query
+            const queryBranchId = req.query.branchId as string | undefined;
+            const effectiveBranchId = getEffectiveBranchId(req.user, queryBranchId);
+
+            const transfers = await transferService.listTransfersByBranch(effectiveBranchId || req.user.branchId, filters);
             res.json(transfers);
         } catch (error: any) {
             res.status(500).json({ error: error.message });

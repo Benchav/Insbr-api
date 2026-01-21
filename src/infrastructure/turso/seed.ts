@@ -48,35 +48,43 @@ async function seedDatabase() {
         console.log('\n👥 Creando usuarios...');
         const users = [
             {
-                id: 'USER-ADMIN-DIR-001',
-                username: 'admin_diriamba',
+                id: 'USER-ADMIN-GLOBAL',
+                username: 'admin',
                 password: await bcrypt.hash('123', 10),
-                name: 'Administrador Diriamba',
+                name: 'Admin Global',
                 role: 'ADMIN',
                 branchId: 'BRANCH-DIR-001'
             },
             {
-                id: 'USER-ADMIN-JIN-001',
-                username: 'admin_jinotepe',
+                id: 'USER-GERENTE-DIR-001',
+                username: 'gerente_diriamba',
                 password: await bcrypt.hash('123', 10),
-                name: 'Administrador Jinotepe',
-                role: 'ADMIN',
-                branchId: 'BRANCH-JIN-001'
+                name: 'Gerente Diriamba',
+                role: 'GERENTE',
+                branchId: 'BRANCH-DIR-001'
             },
             {
-                id: 'USER-SELLER-DIR-001',
+                id: 'USER-CAJERO-DIR-001',
                 username: 'cajero_diriamba',
                 password: await bcrypt.hash('123', 10),
                 name: 'Cajero Diriamba',
-                role: 'SELLER',
+                role: 'CAJERO',
                 branchId: 'BRANCH-DIR-001'
             },
             {
-                id: 'USER-SELLER-JIN-001',
+                id: 'USER-GERENTE-JIN-001',
+                username: 'gerente_jinotepe',
+                password: await bcrypt.hash('123', 10),
+                name: 'Gerente Jinotepe',
+                role: 'GERENTE',
+                branchId: 'BRANCH-JIN-001'
+            },
+            {
+                id: 'USER-CAJERO-JIN-001',
                 username: 'cajero_jinotepe',
                 password: await bcrypt.hash('123', 10),
                 name: 'Cajero Jinotepe',
-                role: 'SELLER',
+                role: 'CAJERO',
                 branchId: 'BRANCH-JIN-001'
             }
         ];
@@ -182,9 +190,10 @@ async function seedDatabase() {
         console.log(`   - ${products.length} productos`);
         console.log(`   - ${stocks.length} registros de stock`);
         console.log('\n🔐 Credenciales de acceso:');
-        console.log('   Admin Diriamba: admin_diriamba / 123');
-        console.log('   Admin Jinotepe: admin_jinotepe / 123');
+        console.log('   Admin Global: admin / 123');
+        console.log('   Gerente Diriamba: gerente_diriamba / 123');
         console.log('   Cajero Diriamba: cajero_diriamba / 123');
+        console.log('   Gerente Jinotepe: gerente_jinotepe / 123');
         console.log('   Cajero Jinotepe: cajero_jinotepe / 123');
 
     } catch (error) {
