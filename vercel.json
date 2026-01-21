@@ -1,20 +1,9 @@
 {
     "version": 2,
-    "builds": [
+    "rewrites": [
         {
-            "src": "src/index.ts",
-            "use": "@vercel/node"
-        }
-    ],
-    "routes": [
-        {
-            "src": "/(.*)",
-            "dest": "src/index.ts",
-            "headers": {
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "GET,OPTIONS,PATCH,DELETE,POST,PUT",
-                "Access-Control-Allow-Headers": "X-Requested-With, Content-Type, Authorization"
-            }
+            "source": "/(.*)",
+            "destination": "/api"
         }
     ]
 }
