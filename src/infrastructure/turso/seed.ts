@@ -50,7 +50,7 @@ async function seedDatabase() {
             {
                 id: 'USER-ADMIN-GLOBAL',
                 username: 'admin',
-                password: await bcrypt.hash('123', 10),
+                password: await bcrypt.hash('Admin@2026!Insbr', 10),
                 name: 'Admin Global',
                 role: 'ADMIN',
                 branchId: 'BRANCH-DIR-001'
@@ -58,7 +58,7 @@ async function seedDatabase() {
             {
                 id: 'USER-GERENTE-DIR-001',
                 username: 'gerente_diriamba',
-                password: await bcrypt.hash('123', 10),
+                password: await bcrypt.hash('Gerente@Dir2026!', 10),
                 name: 'Gerente Diriamba',
                 role: 'GERENTE',
                 branchId: 'BRANCH-DIR-001'
@@ -66,7 +66,7 @@ async function seedDatabase() {
             {
                 id: 'USER-CAJERO-DIR-001',
                 username: 'cajero_diriamba',
-                password: await bcrypt.hash('123', 10),
+                password: await bcrypt.hash('Cajero@Dir2026!', 10),
                 name: 'Cajero Diriamba',
                 role: 'CAJERO',
                 branchId: 'BRANCH-DIR-001'
@@ -74,7 +74,7 @@ async function seedDatabase() {
             {
                 id: 'USER-GERENTE-JIN-001',
                 username: 'gerente_jinotepe',
-                password: await bcrypt.hash('123', 10),
+                password: await bcrypt.hash('Gerente@Jin2026!', 10),
                 name: 'Gerente Jinotepe',
                 role: 'GERENTE',
                 branchId: 'BRANCH-JIN-001'
@@ -82,7 +82,7 @@ async function seedDatabase() {
             {
                 id: 'USER-CAJERO-JIN-001',
                 username: 'cajero_jinotepe',
-                password: await bcrypt.hash('123', 10),
+                password: await bcrypt.hash('Cajero@Jin2026!', 10),
                 name: 'Cajero Jinotepe',
                 role: 'CAJERO',
                 branchId: 'BRANCH-JIN-001'
@@ -190,11 +190,11 @@ async function seedDatabase() {
         console.log(`   - ${products.length} productos`);
         console.log(`   - ${stocks.length} registros de stock`);
         console.log('\n🔐 Credenciales de acceso:');
-        console.log('   Admin Global: admin / 123');
-        console.log('   Gerente Diriamba: gerente_diriamba / 123');
-        console.log('   Cajero Diriamba: cajero_diriamba / 123');
-        console.log('   Gerente Jinotepe: gerente_jinotepe / 123');
-        console.log('   Cajero Jinotepe: cajero_jinotepe / 123');
+        console.log('   Admin Global: admin / Admin@2026!Insbr');
+        console.log('   Gerente Diriamba: gerente_diriamba / Gerente@Dir2026!');
+        console.log('   Cajero Diriamba: cajero_diriamba / Cajero@Dir2026!');
+        console.log('   Gerente Jinotepe: gerente_jinotepe / Gerente@Jin2026!');
+        console.log('   Cajero Jinotepe: cajero_jinotepe / Cajero@Jin2026!');
 
     } catch (error) {
         console.error('❌ Error durante el seed:', error);
