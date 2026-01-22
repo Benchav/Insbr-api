@@ -216,6 +216,65 @@ export function createAuthController(authService: AuthService): Router {
 
     /**
      * @swagger
+     * /api/auth/users:
+     *   get:
+     *     summary: Listar todos los usuarios (solo ADMIN)
+     *     description: Obtiene la lista completa de usuarios con sus detalles (username, nombre, rol, sucursal). Solo accesible para usuarios con rol ADMIN.
+     *     tags: [Auth]
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: Lista de usuarios
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 users:
+     *                   type: array
+     *                   items:
+     *                     type: object
+     *                     properties:
+     *                       id:
+     *                         type: string
+     *                       username:
+     *                         type: string
+     *                       name:
+     *                         type: string
+     *                       role:
+     *                         type: string
+     *                         enum: [ADMIN, GERENTE, CAJERO]
+     *                       branchId:
+     *                         type: string
+     *                       isActive:
+     *                         type: boolean
+     *                       createdAt:
+     *                         type: string
+     *                         format: date-time
+     *                       updatedAt:
+     *                         type: string
+     *                         format: date-time
+     *       401:
+     *         description: No autenticado
+     *       403:
+     *         description: No autorizado (requiere rol ADMIN)
+     *       500:
+     *         description: Error del servidor
+     */
+    router.get('/users', authenticate, authorize(['ADMIN']), async (req: Request, res: Response) => {
+        try {
+            const users = await authService.getAllUsers();
+            res.json({ users });
+        } catch (error: any) {
+            console.error('Error en GET /users:', error);
+            res.status(500).json({ error: 'Error al obtener usuarios' });
+        }
+    });
+
+
+    /**
+     * @swagger
      * /api/auth/users/{id}:
      *   put:
      *     summary: Actualizar usuario completo (Solo ADMIN)

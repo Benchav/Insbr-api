@@ -111,6 +111,20 @@ export class AuthService {
     }
 
     /**
+     * Listar todos los usuarios (solo ADMIN)
+     */
+    async getAllUsers(): Promise<Omit<User, 'password'>[]> {
+        const users = await this.userRepository.findAll();
+
+        // Remover passwords de todos los usuarios
+        return users.map(user => {
+            const { password: _, ...userWithoutPassword } = user;
+            return userWithoutPassword;
+        });
+    }
+
+
+    /**
      * Update User - Actualiza información del usuario (ADMIN)
      */
     async updateUser(id: string, updates: {

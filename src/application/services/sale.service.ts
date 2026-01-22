@@ -177,7 +177,7 @@ export class SaleService {
             const reversalMovement: CreateCashMovementDto = {
                 branchId: sale.branchId,
                 type: 'EXPENSE',
-                category: 'REFUND',
+                category: 'ADJUSTMENT', // Ajuste por cancelación de venta
                 amount: sale.total,
                 saleId: sale.id,
                 paymentMethod: sale.paymentMethod || 'CASH',
