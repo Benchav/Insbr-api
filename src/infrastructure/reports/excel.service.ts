@@ -289,6 +289,489 @@ export class ExcelService {
     }
 
     /**
+     * Genera un reporte profesional de inventario agrupado por sucursal (Solo ADMIN)
+     * @param stockByBranch Inventario organizado por sucursal
+     * @returns Buffer con el archivo Excel generado
+     */
+    async generateInventoryReport(stockByBranch: Array<{
+        branchId: string;
+        branchName: string;
+        branchCode: string;
+        stock: Array<{
+            productId: string;
+            productName: string;
+            productSku: string;
+            quantity: number;
+            minStock: number;
+            maxStock: number;
+            costPrice: number;
+            retailPrice: number;
+        }>;
+    }>): Promise<Buffer> {
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Inventario por Sucursal', {
+            properties: { tabColor: { argb: 'FFFF9800' } }
+        });
+
+        // ========== CABECERA PRINCIPAL ==========
+        worksheet.mergeCells('A1:H1');
+        const titleCell = worksheet.getCell('A1');
+        titleCell.value = 'INSUMOS BARRERA - Reporte de Inventario';
+        titleCell.font = {
+            name: 'Calibri',
+            size: 18,
+            bold: true,
+            color: { argb: 'FFFF9800' }
+        };
+        titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+        worksheet.getRow(1).height = 35;
+
+        // Fecha de generación
+        worksheet.mergeCells('A2:H2');
+        const dateCell = worksheet.getCell('A2');
+        dateCell.value = `Generado: ${this.formatDateTime(new Date())}`;
+        dateCell.font = { name: 'Calibri', size: 10, italic: true };
+        dateCell.alignment = { horizontal: 'center' };
+        worksheet.getRow(2).height = 20;
+
+        // ========== RESUMEN GENERAL ==========
+        const totalProducts = stockByBranch.reduce((sum, branch) => sum + branch.stock.length, 0);
+        const totalValue = stockByBranch.reduce((sum, branch) =>
+            sum + branch.stock.reduce((s, item) => s + (item.quantity * item.costPrice), 0), 0
+        );
+        const lowStockItems = stockByBranch.reduce((sum, branch) =>
+            sum + branch.stock.filter(item => item.quantity <= item.minStock).length, 0
+        );
+
+        worksheet.getRow(4).height = 40;
+        this.createDashboardCard(worksheet, 'A4', 'B4', 'Total Productos', totalProducts.toString(), 'FFFFE0B2');
+        this.createDashboardCard(worksheet, 'C4', 'E4', 'Valor Total Inventario',
+            this.formatMoney(totalValue), 'FFE1F5FE');
+        this.createDashboardCard(worksheet, 'F4', 'H4', 'Productos Bajo Stock',
+            lowStockItems.toString(), lowStockItems > 0 ? 'FFFFCDD2' : 'FFC8E6C9');
+
+        let currentRow = 6;
+
+        // ========== DATOS POR SUCURSAL ==========
+        for (const branch of stockByBranch) {
+            // Separador visual
+            currentRow++;
+
+            // HEADER DE SUCURSAL
+            worksheet.mergeCells(`A${currentRow}:H${currentRow}`);
+            const branchHeader = worksheet.getCell(`A${currentRow}`);
+            branchHeader.value = `📍 ${branch.branchName.toUpperCase()} (${branch.branchCode})`;
+            branchHeader.font = {
+                name: 'Calibri',
+                size: 14,
+                bold: true,
+                color: { argb: 'FFFFFFFF' }
+            };
+            branchHeader.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFFF9800' }
+            };
+            branchHeader.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+            worksheet.getRow(currentRow).height = 30;
+            currentRow++;
+
+            // Estadísticas de la sucursal
+            const branchTotal = branch.stock.length;
+            const branchValue = branch.stock.reduce((sum, item) => sum + (item.quantity * item.costPrice), 0);
+            const branchLowStock = branch.stock.filter(item => item.quantity <= item.minStock).length;
+
+            worksheet.mergeCells(`A${currentRow}:H${currentRow}`);
+            const branchStats = worksheet.getCell(`A${currentRow}`);
+            branchStats.value = `   Productos: ${branchTotal} | Valor: ${this.formatMoney(branchValue)} | Bajo Stock: ${branchLowStock}`;
+            branchStats.font = { name: 'Calibri', size: 10, italic: true };
+            branchStats.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFFFF3E0' }
+            };
+            branchStats.alignment = { horizontal: 'left', vertical: 'middle' };
+            worksheet.getRow(currentRow).height = 20;
+            currentRow++;
+
+            // Encabezados de tabla
+            const headers = ['SKU', 'Producto', 'Cantidad', 'Mín', 'Máx', 'Costo Unit.', 'Precio Venta', 'Valor Total'];
+            const headerRow = worksheet.getRow(currentRow);
+            headerRow.height = 25;
+
+            headers.forEach((header, index) => {
+                const cell = headerRow.getCell(index + 1);
+                cell.value = header;
+                cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'FF757575' }
+                };
+                cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                cell.border = {
+                    top: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    left: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
+            });
+            currentRow++;
+
+            // Datos de productos
+            for (const item of branch.stock) {
+                const row = worksheet.getRow(currentRow);
+                row.height = 20;
+
+                const isLowStock = item.quantity <= item.minStock;
+                const valorTotal = item.quantity * item.costPrice;
+
+                row.getCell(1).value = item.productSku;
+                row.getCell(2).value = item.productName;
+                row.getCell(3).value = item.quantity;
+                row.getCell(4).value = item.minStock;
+                row.getCell(5).value = item.maxStock;
+                row.getCell(6).value = item.costPrice / 100;
+                row.getCell(6).numFmt = '"C$" #,##0.00';
+                row.getCell(7).value = item.retailPrice / 100;
+                row.getCell(7).numFmt = '"C$" #,##0.00';
+                row.getCell(8).value = valorTotal / 100;
+                row.getCell(8).numFmt = '"C$" #,##0.00';
+
+                // Aplicar estilos
+                for (let col = 1; col <= 8; col++) {
+                    const cell = row.getCell(col);
+                    cell.border = {
+                        top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+                        bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+                        left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+                        right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
+                    };
+                    cell.font = { name: 'Calibri', size: 10 };
+                    cell.alignment = { horizontal: 'left', vertical: 'middle' };
+                }
+
+                // Resaltar bajo stock
+                if (isLowStock) {
+                    row.getCell(3).fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'FFFFCDD2' }
+                    };
+                    row.getCell(3).font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFD32F2F' } };
+                }
+
+                // Centrar columnas numéricas
+                row.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+                row.getCell(3).alignment = { horizontal: 'center', vertical: 'middle' };
+                row.getCell(4).alignment = { horizontal: 'center', vertical: 'middle' };
+                row.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
+                row.getCell(6).alignment = { horizontal: 'right', vertical: 'middle' };
+                row.getCell(7).alignment = { horizontal: 'right', vertical: 'middle' };
+                row.getCell(8).alignment = { horizontal: 'right', vertical: 'middle' };
+
+                currentRow++;
+            }
+
+            // Subtotal de sucursal
+            const subtotalRow = worksheet.getRow(currentRow);
+            subtotalRow.height = 25;
+            worksheet.mergeCells(`A${currentRow}:G${currentRow}`);
+            const subtotalLabel = subtotalRow.getCell(1);
+            subtotalLabel.value = `SUBTOTAL ${branch.branchName.toUpperCase()}`;
+            subtotalLabel.font = { name: 'Calibri', size: 11, bold: true };
+            subtotalLabel.alignment = { horizontal: 'right', vertical: 'middle' };
+            subtotalLabel.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFFFE0B2' }
+            };
+
+            const subtotalValue = subtotalRow.getCell(8);
+            subtotalValue.value = branchValue / 100;
+            subtotalValue.numFmt = '"C$" #,##0.00';
+            subtotalValue.font = { name: 'Calibri', size: 11, bold: true };
+            subtotalValue.alignment = { horizontal: 'right', vertical: 'middle' };
+            subtotalValue.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFFFE0B2' }
+            };
+
+            currentRow += 2;
+        }
+
+        // Ajustar anchos de columna
+        worksheet.getColumn(1).width = 15; // SKU
+        worksheet.getColumn(2).width = 35; // Producto
+        worksheet.getColumn(3).width = 12; // Cantidad
+        worksheet.getColumn(4).width = 8;  // Mín
+        worksheet.getColumn(5).width = 8;  // Máx
+        worksheet.getColumn(6).width = 14; // Costo
+        worksheet.getColumn(7).width = 14; // Precio
+        worksheet.getColumn(8).width = 16; // Valor Total
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        return Buffer.from(buffer);
+    }
+
+    /**
+     * Genera un reporte profesional de clientes agrupado por tipo (Solo ADMIN)
+     * @param clientsByType Clientes organizados por tipo
+     * @returns Buffer con el archivo Excel generado
+     */
+    async generateClientsReport(clientsByType: Array<{
+        type: 'RETAIL' | 'WHOLESALE';
+        typeName: string;
+        clients: Array<{
+            id: string;
+            name: string;
+            phone: string;
+            email?: string;
+            address: string;
+            creditLimit: number;
+            currentDebt: number;
+            isActive: boolean;
+        }>;
+    }>): Promise<Buffer> {
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Cartera de Clientes', {
+            properties: { tabColor: { argb: 'FF9C27B0' } }
+        });
+
+        // ========== CABECERA PRINCIPAL ==========
+        worksheet.mergeCells('A1:G1');
+        const titleCell = worksheet.getCell('A1');
+        titleCell.value = 'INSUMOS BARRERA - Reporte de Clientes';
+        titleCell.font = {
+            name: 'Calibri',
+            size: 18,
+            bold: true,
+            color: { argb: 'FF9C27B0' }
+        };
+        titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+        worksheet.getRow(1).height = 35;
+
+        // Fecha de generación
+        worksheet.mergeCells('A2:G2');
+        const dateCell = worksheet.getCell('A2');
+        dateCell.value = `Generado: ${this.formatDateTime(new Date())}`;
+        dateCell.font = { name: 'Calibri', size: 10, italic: true };
+        dateCell.alignment = { horizontal: 'center' };
+        worksheet.getRow(2).height = 20;
+
+        // ========== RESUMEN GENERAL ==========
+        const totalClients = clientsByType.reduce((sum, type) => sum + type.clients.length, 0);
+        const totalCreditLimit = clientsByType.reduce((sum, type) =>
+            sum + type.clients.reduce((s, c) => s + c.creditLimit, 0), 0
+        );
+        const totalDebt = clientsByType.reduce((sum, type) =>
+            sum + type.clients.reduce((s, c) => s + c.currentDebt, 0), 0
+        );
+        const activeClients = clientsByType.reduce((sum, type) =>
+            sum + type.clients.filter(c => c.isActive).length, 0
+        );
+
+        worksheet.getRow(4).height = 40;
+        this.createDashboardCard(worksheet, 'A4', 'B4', 'Total Clientes', totalClients.toString(), 'FFE1BEE7');
+        this.createDashboardCard(worksheet, 'C4', 'D4', 'Límite Crédito Total',
+            this.formatMoney(totalCreditLimit), 'FFE3F2FD');
+        this.createDashboardCard(worksheet, 'E4', 'F4', 'Deuda Total',
+            this.formatMoney(totalDebt), totalDebt > 0 ? 'FFFFECB3' : 'FFC8E6C9');
+        this.createDashboardCard(worksheet, 'G4', 'G4', 'Activos',
+            activeClients.toString(), 'FFC8E6C9');
+
+        let currentRow = 6;
+
+        // ========== DATOS POR TIPO DE CLIENTE ==========
+        for (const clientType of clientsByType) {
+            // Separador visual
+            currentRow++;
+
+            // HEADER DE TIPO
+            worksheet.mergeCells(`A${currentRow}:G${currentRow}`);
+            const typeHeader = worksheet.getCell(`A${currentRow}`);
+            typeHeader.value = `👥 ${clientType.typeName.toUpperCase()}`;
+            typeHeader.font = {
+                name: 'Calibri',
+                size: 14,
+                bold: true,
+                color: { argb: 'FFFFFFFF' }
+            };
+            typeHeader.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FF9C27B0' }
+            };
+            typeHeader.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+            worksheet.getRow(currentRow).height = 30;
+            currentRow++;
+
+            // Estadísticas del tipo
+            const typeTotal = clientType.clients.length;
+            const typeCreditLimit = clientType.clients.reduce((sum, c) => sum + c.creditLimit, 0);
+            const typeDebt = clientType.clients.reduce((sum, c) => sum + c.currentDebt, 0);
+            const typeActive = clientType.clients.filter(c => c.isActive).length;
+
+            worksheet.mergeCells(`A${currentRow}:G${currentRow}`);
+            const typeStats = worksheet.getCell(`A${currentRow}`);
+            typeStats.value = `   Clientes: ${typeTotal} | Activos: ${typeActive} | Límite Total: ${this.formatMoney(typeCreditLimit)} | Deuda: ${this.formatMoney(typeDebt)}`;
+            typeStats.font = { name: 'Calibri', size: 10, italic: true };
+            typeStats.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFF3E5F5' }
+            };
+            typeStats.alignment = { horizontal: 'left', vertical: 'middle' };
+            worksheet.getRow(currentRow).height = 20;
+            currentRow++;
+
+            // Encabezados de tabla
+            const headers = ['Cliente', 'Teléfono', 'Email', 'Límite Crédito', 'Deuda Actual', 'Disponible', 'Estado'];
+            const headerRow = worksheet.getRow(currentRow);
+            headerRow.height = 25;
+
+            headers.forEach((header, index) => {
+                const cell = headerRow.getCell(index + 1);
+                cell.value = header;
+                cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'FF757575' }
+                };
+                cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                cell.border = {
+                    top: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    left: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
+            });
+            currentRow++;
+
+            // Datos de clientes
+            for (const client of clientType.clients) {
+                const row = worksheet.getRow(currentRow);
+                row.height = 20;
+
+                const disponible = client.creditLimit - client.currentDebt;
+                const hasDebt = client.currentDebt > 0;
+
+                row.getCell(1).value = client.name;
+                row.getCell(2).value = client.phone;
+                row.getCell(3).value = client.email || 'N/A';
+                row.getCell(4).value = client.creditLimit / 100;
+                row.getCell(4).numFmt = '"C$" #,##0.00';
+                row.getCell(5).value = client.currentDebt / 100;
+                row.getCell(5).numFmt = '"C$" #,##0.00';
+                row.getCell(6).value = disponible / 100;
+                row.getCell(6).numFmt = '"C$" #,##0.00';
+                row.getCell(7).value = client.isActive ? 'Activo' : 'Inactivo';
+
+                // Aplicar estilos
+                for (let col = 1; col <= 7; col++) {
+                    const cell = row.getCell(col);
+                    cell.border = {
+                        top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+                        bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+                        left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+                        right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
+                    };
+                    cell.font = { name: 'Calibri', size: 10 };
+                    cell.alignment = { horizontal: 'left', vertical: 'middle' };
+                }
+
+                // Resaltar deuda
+                if (hasDebt) {
+                    row.getCell(5).fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'FFFFECB3' }
+                    };
+                    row.getCell(5).font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFF57C00' } };
+                }
+
+                // Resaltar estado
+                if (!client.isActive) {
+                    row.getCell(7).fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'FFEEEEEE' }
+                    };
+                    row.getCell(7).font = { name: 'Calibri', size: 10, italic: true, color: { argb: 'FF757575' } };
+                } else {
+                    row.getCell(7).fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'FFC8E6C9' }
+                    };
+                    row.getCell(7).font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF388E3C' } };
+                }
+
+                // Alineación
+                row.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
+                row.getCell(4).alignment = { horizontal: 'right', vertical: 'middle' };
+                row.getCell(5).alignment = { horizontal: 'right', vertical: 'middle' };
+                row.getCell(6).alignment = { horizontal: 'right', vertical: 'middle' };
+                row.getCell(7).alignment = { horizontal: 'center', vertical: 'middle' };
+
+                currentRow++;
+            }
+
+            // Subtotal del tipo
+            const subtotalRow = worksheet.getRow(currentRow);
+            subtotalRow.height = 25;
+            worksheet.mergeCells(`A${currentRow}:C${currentRow}`);
+            const subtotalLabel = subtotalRow.getCell(1);
+            subtotalLabel.value = `SUBTOTAL ${clientType.typeName.toUpperCase()}`;
+            subtotalLabel.font = { name: 'Calibri', size: 11, bold: true };
+            subtotalLabel.alignment = { horizontal: 'right', vertical: 'middle' };
+            subtotalLabel.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFE1BEE7' }
+            };
+
+            const subtotalCredit = subtotalRow.getCell(4);
+            subtotalCredit.value = typeCreditLimit / 100;
+            subtotalCredit.numFmt = '"C$" #,##0.00';
+            subtotalCredit.font = { name: 'Calibri', size: 11, bold: true };
+            subtotalCredit.alignment = { horizontal: 'right', vertical: 'middle' };
+            subtotalCredit.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFE1BEE7' }
+            };
+
+            const subtotalDebt = subtotalRow.getCell(5);
+            subtotalDebt.value = typeDebt / 100;
+            subtotalDebt.numFmt = '"C$" #,##0.00';
+            subtotalDebt.font = { name: 'Calibri', size: 11, bold: true };
+            subtotalDebt.alignment = { horizontal: 'right', vertical: 'middle' };
+            subtotalDebt.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFE1BEE7' }
+            };
+
+            currentRow += 2;
+        }
+
+        // Ajustar anchos de columna
+        worksheet.getColumn(1).width = 30; // Cliente
+        worksheet.getColumn(2).width = 15; // Teléfono
+        worksheet.getColumn(3).width = 25; // Email
+        worksheet.getColumn(4).width = 16; // Límite
+        worksheet.getColumn(5).width = 16; // Deuda
+        worksheet.getColumn(6).width = 16; // Disponible
+        worksheet.getColumn(7).width = 12; // Estado
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        return Buffer.from(buffer);
+    }
+
+    /**
      * Crea una tarjeta visual de dashboard en el Excel
      */
     private createDashboardCard(

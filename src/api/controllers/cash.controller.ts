@@ -254,5 +254,84 @@ export function createCashController(cashService: CashService): Router {
         }
     });
 
+    /**
+     * @swagger
+     * /api/cash/consolidated-revenue:
+     *   get:
+     *     summary: Obtener ingresos consolidados de todas las sucursales (Solo ADMIN)
+     *     description: Retorna estadísticas de caja de todas las sucursales activas con totales consolidados
+     *     tags: [Cash]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: query
+     *         name: date
+     *         schema:
+     *           type: string
+     *           format: date
+     *         description: Fecha del reporte (default: hoy)
+     *     responses:
+     *       200:
+     *         description: Estadísticas consolidadas
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 date:
+     *                   type: string
+     *                   format: date-time
+     *                 branches:
+     *                   type: array
+     *                   items:
+     *                     type: object
+     *                     properties:
+     *                       branchId:
+     *                         type: string
+     *                       branchName:
+     *                         type: string
+     *                       branchCode:
+     *                         type: string
+     *                       income:
+     *                         type: integer
+     *                       expenses:
+     *                         type: integer
+     *                       netBalance:
+     *                         type: integer
+     *                 totals:
+     *                   type: object
+     *                   properties:
+     *                     income:
+     *                       type: integer
+     *                     expenses:
+     *                       type: integer
+     *                     netBalance:
+     *                       type: integer
+     *       401:
+     *         description: No autorizado
+     *       403:
+     *         description: Requiere rol ADMIN
+     */
+    router.get('/consolidated-revenue', async (req: Request, res: Response) => {
+        try {
+            if (!req.user) throw new Error('No autorizado');
+
+            // Solo ADMIN puede ver consolidado de todas las sucursales
+            if (req.user.role !== 'ADMIN') {
+                res.status(403).json({ error: 'Acceso denegado. Solo ADMIN puede ver estadísticas consolidadas.' });
+                return;
+            }
+
+            const dateParam = req.query.date;
+            const date = dateParam ? new Date(dateParam as string) : new Date();
+
+            const consolidated = await cashService.getConsolidatedRevenue(date);
+            res.json(consolidated);
+        } catch (error: any) {
+            console.error('Error en /consolidated-revenue:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
+
     return router;
 }

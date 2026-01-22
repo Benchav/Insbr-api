@@ -1,5 +1,6 @@
 import { ICashMovementRepository } from '../../core/interfaces/cash-movement.repository.js';
 import { CashMovement, CreateCashMovementDto } from '../../core/entities/cash-movement.entity.js';
+import { IBranchRepository } from '../../core/interfaces/branch.repository.js';
 
 export interface DailyBalance {
     date: Date;
@@ -14,7 +15,8 @@ export interface DailyBalance {
  */
 export class CashService {
     constructor(
-        private cashMovementRepository: ICashMovementRepository
+        private cashMovementRepository: ICashMovementRepository,
+        private branchRepository: IBranchRepository
     ) { }
 
     /**
@@ -123,5 +125,60 @@ export class CashService {
         });
 
         return summary;
+    }
+
+    /**
+     * Obtiene ingresos consolidados de todas las sucursales (solo ADMIN)
+     */
+    async getConsolidatedRevenue(date: Date = new Date()): Promise<{
+        date: Date;
+        branches: Array<{
+            branchId: string;
+            branchName: string;
+            branchCode: string;
+            income: number;
+            expenses: number;
+            netBalance: number;
+        }>;
+        totals: {
+            income: number;
+            expenses: number;
+            netBalance: number;
+        };
+    }> {
+        // Obtener todas las sucursales activas
+        const allBranches = await this.branchRepository.findAll();
+        const activeBranches = allBranches.filter(b => b.isActive);
+
+        // Obtener balance de cada sucursal
+        const branchesData = await Promise.all(
+            activeBranches.map(async (branch) => {
+                const balance = await this.getDailyBalance(branch.id, date);
+                return {
+                    branchId: branch.id,
+                    branchName: branch.name,
+                    branchCode: branch.code,
+                    income: balance.income,
+                    expenses: balance.expenses,
+                    netBalance: balance.netBalance
+                };
+            })
+        );
+
+        // Calcular totales
+        const totals = branchesData.reduce(
+            (acc, branch) => ({
+                income: acc.income + branch.income,
+                expenses: acc.expenses + branch.expenses,
+                netBalance: acc.netBalance + branch.netBalance
+            }),
+            { income: 0, expenses: 0, netBalance: 0 }
+        );
+
+        return {
+            date,
+            branches: branchesData,
+            totals
+        };
     }
 }

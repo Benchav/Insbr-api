@@ -4,10 +4,14 @@ import { SaleService } from '../../application/services/sale.service.js';
 import { PdfService } from '../../infrastructure/reports/pdf.service.js';
 import { ExcelService } from '../../infrastructure/reports/excel.service.js';
 import { authorize } from '../../infrastructure/web/middlewares/auth.middleware.js';
+import { StockService } from '../../application/services/stock.service.js';
+import { ProductService } from '../../application/services/product.service.js';
+import { CustomerService } from '../../application/services/customer.service.js';
 
 // Interfaz simple para el repositorio de sucursales
 interface IBranchRepository {
     findById(id: string): Promise<any>;
+    findAll(): Promise<any[]>;
 }
 
 // Interfaz simple para el repositorio de movimientos de caja
@@ -20,7 +24,10 @@ export function createReportController(
     pdfService: PdfService,
     excelService: ExcelService,
     branchRepository: IBranchRepository,
-    cashMovementRepository: ICashMovementRepository
+    cashMovementRepository: ICashMovementRepository,
+    stockService: StockService,
+    productService: ProductService,
+    customerService: CustomerService
 ): Router {
     const router = Router();
     // Note: authenticate middleware will be applied at app.ts level
@@ -309,6 +316,121 @@ export function createReportController(
             } else {
                 res.status(500).json({ error: error.message || 'Error al generar el reporte' });
             }
+        }
+    });
+
+    /**
+     * Reporte de Inventario por Sucursal (Solo ADMIN)
+     */
+    router.get('/inventory/excel', authorize(['ADMIN']), async (req: Request, res: Response) => {
+        try {
+            // Obtener todas las sucursales activas
+            const allBranches = await branchRepository.findAll();
+            const activeBranches = allBranches.filter((b: any) => b.isActive);
+
+            // Obtener inventario por cada sucursal
+            const stockByBranch = await Promise.all(
+                activeBranches.map(async (branch: any) => {
+                    const stock = await stockService.getStockByBranch(branch.id);
+
+                    // Enriquecer con datos del producto
+                    const enrichedStock = await Promise.all(
+                        stock.map(async (item: any) => {
+                            const product = await productService.getProduct(item.productId);
+                            return {
+                                productId: item.productId,
+                                productName: product.name,
+                                productSku: product.sku,
+                                quantity: item.quantity,
+                                minStock: item.minStock,
+                                maxStock: item.maxStock,
+                                costPrice: product.costPrice,
+                                retailPrice: product.retailPrice
+                            };
+                        })
+                    );
+
+                    return {
+                        branchId: branch.id,
+                        branchName: branch.name,
+                        branchCode: branch.code,
+                        stock: enrichedStock
+                    };
+                })
+            );
+
+            // Generar Excel
+            const excelBuffer = await excelService.generateInventoryReport(stockByBranch);
+
+            // Enviar respuesta
+            const dateStr = new Date().toISOString().split('T')[0];
+            const filename = `Reporte_Inventario_${dateStr}.xlsx`;
+
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+            res.send(excelBuffer);
+        } catch (error: any) {
+            console.error('Error generando reporte de inventario:', error);
+            res.status(500).json({ error: error.message || 'Error al generar el reporte' });
+        }
+    });
+
+    /**
+     * Reporte de Clientes por Tipo (Solo ADMIN)
+     */
+    router.get('/clients/excel', authorize(['ADMIN']), async (req: Request, res: Response) => {
+        try {
+            // Obtener todos los clientes
+            const allClients = await customerService.listCustomers({ isActive: undefined });
+
+            // Agrupar por tipo
+            const retailClients = allClients.filter((c: any) => c.type === 'RETAIL');
+            const wholesaleClients = allClients.filter((c: any) => c.type === 'WHOLESALE');
+
+            const clientsByType = [
+                {
+                    type: 'RETAIL' as const,
+                    typeName: 'Clientes Minoristas',
+                    clients: retailClients.map((c: any) => ({
+                        id: c.id,
+                        name: c.name,
+                        phone: c.phone,
+                        email: c.email,
+                        address: c.address,
+                        creditLimit: c.creditLimit,
+                        currentDebt: c.currentDebt,
+                        isActive: c.isActive
+                    }))
+                },
+                {
+                    type: 'WHOLESALE' as const,
+                    typeName: 'Clientes Mayoristas',
+                    clients: wholesaleClients.map((c: any) => ({
+                        id: c.id,
+                        name: c.name,
+                        phone: c.phone,
+                        email: c.email,
+                        address: c.address,
+                        creditLimit: c.creditLimit,
+                        currentDebt: c.currentDebt,
+                        isActive: c.isActive
+                    }))
+                }
+            ];
+
+            // Generar Excel
+            const excelBuffer = await excelService.generateClientsReport(clientsByType);
+
+            // Enviar respuesta
+            const dateStr = new Date().toISOString().split('T')[0];
+            const filename = `Reporte_Clientes_${dateStr}.xlsx`;
+
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+            res.send(excelBuffer);
+        } catch (error: any) {
+            console.error('Error generando reporte de clientes:', error);
+            res.status(500).json({ error: error.message || 'Error al generar el reporte' });
         }
     });
 

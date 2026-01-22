@@ -97,7 +97,7 @@ export function createApp(): Express {
     productRepository
   );
 
-  const cashService = new CashService(cashMovementRepository);
+  const cashService = new CashService(cashMovementRepository, branchRepository);
   const stockService = new StockService(stockRepository, productRepository);
 
   const customerService = new CustomerService(customerRepository);
@@ -129,7 +129,16 @@ export function createApp(): Express {
   app.use('/api/sales', authenticate, authorize(['ADMIN', 'GERENTE', 'CAJERO']), createSaleController(saleService));
 
   // Reportes - Todos pueden ver tickets, solo ADMIN y GERENTE pueden generar reportes Excel
-  app.use('/api/reports', authenticate, createReportController(saleService, pdfService, excelService, branchRepository, cashMovementRepository));
+  app.use('/api/reports', authenticate, createReportController(
+    saleService,
+    pdfService,
+    excelService,
+    branchRepository,
+    cashMovementRepository,
+    stockService,
+    productService,
+    customerService
+  ));
 
   // Compras - Solo ADMIN y GERENTE
   app.use('/api/purchases', authenticate, authorize(['ADMIN', 'GERENTE']), createPurchaseController(purchaseService));
