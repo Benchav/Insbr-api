@@ -44,7 +44,14 @@ async function seedDatabase() {
             console.log(`  ✅ ${branch.name} (${branch.code})`);
         }
 
-        // 2. Crear Usuarios
+        // 2. Borrar usuarios existentes (deshabilitando foreign keys temporalmente)
+        console.log('\n🗑️  Borrando usuarios existentes...');
+        await tursoClient.execute('PRAGMA foreign_keys = OFF');
+        await tursoClient.execute('DELETE FROM users');
+        await tursoClient.execute('PRAGMA foreign_keys = ON');
+        console.log('  ✅ Usuarios anteriores eliminados');
+
+        // 3. Crear Usuarios
         console.log('\n👥 Creando usuarios...');
         const users = [
             {
@@ -91,7 +98,7 @@ async function seedDatabase() {
 
         for (const user of users) {
             await tursoClient.execute({
-                sql: `INSERT OR IGNORE INTO users (id, username, password, name, role, branch_id, is_active, created_at, updated_at)
+                sql: `INSERT INTO users (id, username, password, name, role, branch_id, is_active, created_at, updated_at)
                       VALUES (?, ?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))`,
                 args: [user.id, user.username, user.password, user.name, user.role, user.branchId]
             });
