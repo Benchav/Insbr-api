@@ -7,6 +7,7 @@ import { IProductRepository } from '../../core/interfaces/product.repository.js'
 import { CreateSaleDto, Sale, SaleItem } from '../../core/entities/sale.entity.js';
 import { CreateCreditAccountDto } from '../../core/entities/credit-account.entity.js';
 import { CreateCashMovementDto } from '../../core/entities/cash-movement.entity.js';
+import { getNicaraguaNow, addDaysNicaragua, isTodayNicaragua } from '../../core/utils/date.utils.js';
 
 export class SaleService {
     constructor(
@@ -65,8 +66,8 @@ export class SaleService {
 
         // 5. Si es venta a crédito, crear cuenta por cobrar (CXC)
         if (data.type === 'CREDIT' && data.customerId) {
-            const dueDate = new Date();
-            dueDate.setDate(dueDate.getDate() + 30); // 30 días por defecto
+            // Usar zona horaria de Nicaragua para calcular fecha de vencimiento
+            const dueDate = addDaysNicaragua(getNicaraguaNow(), 30); // 30 días por defecto
 
             const creditAccountData: CreateCreditAccountDto = {
                 type: 'CXC',
@@ -139,14 +140,12 @@ export class SaleService {
         }
 
         // 3. Validar que sea del día actual (solo se pueden cancelar ventas del día)
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const saleDate = new Date(sale.createdAt);
-        saleDate.setHours(0, 0, 0, 0);
-
-        if (saleDate.getTime() !== today.getTime()) {
-            throw new Error('Solo se pueden cancelar ventas del día actual');
+        // Usar zona horaria de Nicaragua para validación consistente
+        if (!isTodayNicaragua(sale.createdAt)) {
+            throw new Error('Solo se pueden cancelar ventas del día actual (hora de Nicaragua)');
         }
+
+
 
         // 4. Revertir stock - devolver productos al inventario
         for (const item of sale.items) {

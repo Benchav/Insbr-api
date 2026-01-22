@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { UserRepository } from '../../core/interfaces/user.repository.js';
 import { User } from '../../core/entities/user.entity.js';
+import { getNicaraguaNow } from '../../core/utils/date.utils.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-12345';
 const JWT_EXPIRATION = '8h';
@@ -84,8 +85,8 @@ export class AuthService {
             role: userData.role,
             branchId: userData.branchId,
             isActive: true,
-            createdAt: new Date(),
-            updatedAt: new Date()
+            createdAt: getNicaraguaNow(),
+            updatedAt: getNicaraguaNow()
         };
 
         const createdUser = await this.userRepository.create(newUser);
@@ -146,7 +147,7 @@ export class AuthService {
             user.password = await bcrypt.hash(updates.password, 10);
         }
 
-        user.updatedAt = new Date();
+        user.updatedAt = getNicaraguaNow();
 
         // 5. Guardar cambios
         const updatedUser = await this.userRepository.update(user);

@@ -3,6 +3,7 @@ import { IStockRepository } from '../../core/interfaces/stock.repository.js';
 import { IBranchRepository } from '../../core/interfaces/branch.repository.js';
 import { IProductRepository } from '../../core/interfaces/product.repository.js';
 import { CreateTransferDto, Transfer } from '../../core/entities/transfer.entity.js';
+import { getNicaraguaNow } from '../../core/utils/date.utils.js';
 
 export class TransferService {
     constructor(
@@ -61,7 +62,7 @@ export class TransferService {
         return this.transferRepository.update(transferId, {
             status: 'IN_TRANSIT',
             approvedBy: userId,
-            approvedAt: new Date()
+            approvedAt: getNicaraguaNow()
         });
     }
 
@@ -118,7 +119,7 @@ export class TransferService {
         return this.transferRepository.update(transferId, {
             status: 'COMPLETED',
             completedBy: userId,
-            completedAt: new Date()
+            completedAt: getNicaraguaNow()
         });
     }
 

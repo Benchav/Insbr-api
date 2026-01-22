@@ -6,6 +6,7 @@ import { ICashMovementRepository } from '../../core/interfaces/cash-movement.rep
 import { CreatePurchaseDto, Purchase } from '../../core/entities/purchase.entity.js';
 import { CreateCreditAccountDto } from '../../core/entities/credit-account.entity.js';
 import { CreateCashMovementDto } from '../../core/entities/cash-movement.entity.js';
+import { getNicaraguaNow, addDaysNicaragua } from '../../core/utils/date.utils.js';
 
 export class PurchaseService {
     constructor(
@@ -47,8 +48,8 @@ export class PurchaseService {
 
         // 4. Si es compra a crédito, crear cuenta por pagar (CPP)
         if (data.type === 'CREDIT') {
-            const dueDate = new Date();
-            dueDate.setDate(dueDate.getDate() + supplier.creditDays);
+            // Usar zona horaria de Nicaragua para calcular fecha de vencimiento
+            const dueDate = addDaysNicaragua(getNicaraguaNow(), supplier.creditDays);
 
             const creditAccountData: CreateCreditAccountDto = {
                 type: 'CPP',
