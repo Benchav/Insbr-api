@@ -9,4 +9,5 @@ export interface UserRepository {
     create(user: User): Promise<User>;
     update(user: User): Promise<User>;
     findAll(): Promise<User[]>;
+    delete(id: string): Promise<void>;
 }

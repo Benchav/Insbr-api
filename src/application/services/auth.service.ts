@@ -170,4 +170,18 @@ export class AuthService {
         const { password: _, ...userWithoutPassword } = updatedUser;
         return userWithoutPassword;
     }
+
+    /**
+     * Eliminar usuario (solo ADMIN)
+     */
+    async deleteUser(id: string): Promise<void> {
+        // Verificar que el usuario existe
+        const user = await this.userRepository.findById(id);
+        if (!user) {
+            throw new Error('Usuario no encontrado');
+        }
+
+        // Eliminar usuario
+        await this.userRepository.delete(id);
+    }
 }

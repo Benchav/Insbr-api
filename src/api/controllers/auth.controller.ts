@@ -361,5 +361,51 @@ export function createAuthController(authService: AuthService): Router {
         }
     });
 
+
+    /**
+     * @swagger
+     * /api/auth/users/{id}:
+     *   delete:
+     *     summary: Eliminar usuario (Solo ADMIN)
+     *     description: Elimina un usuario del sistema. Solo accesible para usuarios con rol ADMIN.
+     *     tags: [Auth]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: ID del usuario a eliminar
+     *     responses:
+     *       204:
+     *         description: Usuario eliminado exitosamente
+     *       401:
+     *         description: No autenticado
+     *       403:
+     *         description: No autorizado (requiere rol ADMIN)
+     *       404:
+     *         description: Usuario no encontrado
+     *       500:
+     *         description: Error del servidor
+     */
+    router.delete('/users/:id', authenticate, authorize(['ADMIN']), async (req: Request, res: Response) => {
+        try {
+            const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+            await authService.deleteUser(id);
+
+            res.status(204).send();
+        } catch (error: any) {
+            console.error('Error en DELETE /users/:id:', error);
+            if (error.message.includes('no encontrado')) {
+                res.status(404).json({ error: error.message });
+            } else {
+                res.status(500).json({ error: 'Error al eliminar usuario' });
+            }
+        }
+    });
+
     return router;
 }

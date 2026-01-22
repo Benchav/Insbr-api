@@ -28,4 +28,8 @@ export class UserRepositoryImpl implements UserRepository {
     async findAll(): Promise<User[]> {
         return Array.from(storage.users.values());
     }
+
+    async delete(id: string): Promise<void> {
+        storage.users.delete(id);
+    }
 }

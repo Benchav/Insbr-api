@@ -66,4 +66,11 @@ export class UserRepositoryTurso implements UserRepository {
             updatedAt: new Date(row.updated_at as string)
         };
     }
+
+    async delete(id: string): Promise<void> {
+        await tursoClient.execute({
+            sql: 'DELETE FROM users WHERE id = ?',
+            args: [id]
+        });
+    }
 }
