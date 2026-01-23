@@ -20,8 +20,8 @@ export class CreditAccountRepositoryTurso implements ICreditAccountRepository {
         const status: CreditAccountStatus = 'PENDIENTE';
 
         await tursoClient.execute({
-            sql: `INSERT INTO credit_accounts (id, type, branch_id, supplier_id, customer_id, purchase_id, sale_id, total_amount, paid_amount, balance_amount, status, due_date, delivery_date, notes, invoice_number, created_at, updated_at)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            sql: `INSERT INTO credit_accounts (id, type, branch_id, supplier_id, customer_id, purchase_id, sale_id, total_amount, paid_amount, balance_amount, status, due_date, notes, invoice_number, created_at, updated_at)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             args: [
                 id,
                 data.type,
@@ -35,7 +35,6 @@ export class CreditAccountRepositoryTurso implements ICreditAccountRepository {
                 balanceAmount,
                 status,
                 data.dueDate.toISOString(),
-                data.deliveryDate ? data.deliveryDate.toISOString() : null,
                 data.notes || null,
                 data.invoiceNumber || null,
                 now,
@@ -122,10 +121,6 @@ export class CreditAccountRepositoryTurso implements ICreditAccountRepository {
             updates.push('status = ?');
             args.push(data.status);
         }
-        if (data.deliveryDate !== undefined) {
-            updates.push('delivery_date = ?');
-            args.push(data.deliveryDate ? data.deliveryDate.toISOString() : null);
-        }
         if (data.notes !== undefined) {
             updates.push('notes = ?');
             args.push(data.notes || null);
@@ -170,7 +165,6 @@ export class CreditAccountRepositoryTurso implements ICreditAccountRepository {
             balanceAmount: Number(row.balance_amount),
             status: row.status as 'PENDIENTE' | 'PAGADO_PARCIAL' | 'PAGADO',
             dueDate: new Date(row.due_date as string),
-            deliveryDate: row.delivery_date ? new Date(row.delivery_date as string) : undefined,
             createdAt: new Date(row.created_at as string),
             updatedAt: new Date(row.updated_at as string),
             notes: row.notes as string | undefined,

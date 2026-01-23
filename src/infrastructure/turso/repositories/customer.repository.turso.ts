@@ -8,11 +8,11 @@ export class CustomerRepositoryTurso implements ICustomerRepository {
         const now = new Date().toISOString();
 
         await tursoClient.execute({
-            sql: `INSERT INTO customers (id, name, contact_name, phone, email, address, tax_id, credit_limit, current_debt, type, is_active, created_at, updated_at)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 1, ?, ?)`,
+            sql: `INSERT INTO customers (id, name, contact_name, phone, email, address, tax_id, credit_limit, current_debt, credit_days, type, is_active, created_at, updated_at)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, 1, ?, ?)`,
             args: [
                 id, data.name, data.contactName || null, data.phone, data.email || null,
-                data.address, data.taxId || null, data.creditLimit, data.type,
+                data.address, data.taxId || null, data.creditLimit, data.creditDays || 30, data.type,
                 now, now
             ]
         });
@@ -90,6 +90,10 @@ export class CustomerRepositoryTurso implements ICustomerRepository {
             updates.push('credit_limit = ?');
             args.push(data.creditLimit);
         }
+        if (data.creditDays !== undefined) {
+            updates.push('credit_days = ?');
+            args.push(data.creditDays);
+        }
         if (data.type !== undefined) {
             updates.push('type = ?');
             args.push(data.type);
@@ -142,6 +146,7 @@ export class CustomerRepositoryTurso implements ICustomerRepository {
             taxId: row.tax_id as string | undefined,
             creditLimit: Number(row.credit_limit),
             currentDebt: Number(row.current_debt),
+            creditDays: Number(row.credit_days || 30),
             type: row.type as 'RETAIL' | 'WHOLESALE',
             isActive: Boolean(row.is_active),
             createdAt: new Date(row.created_at as string),

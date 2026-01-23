@@ -13,6 +13,7 @@ export interface Customer {
     // Línea de crédito
     creditLimit: number; // Límite de crédito en centavos
     currentDebt: number; // Deuda actual en centavos
+    creditDays: number; // Días de crédito permitidos (para calcular dueDate)
 
     // Tipo de cliente
     type: 'RETAIL' | 'WHOLESALE'; // Detalle o mayorista

@@ -27,12 +27,11 @@ export interface CreditAccount {
 
     // Fechas
     dueDate: Date;
-    deliveryDate?: Date;        // Fecha de entrega para encargos (CXC)
     createdAt: Date;
     updatedAt: Date;
 
     // Información adicional
-    notes?: string;              // Notas/Motivo del encargo
+    notes?: string;              // Notas adicionales
     invoiceNumber?: string;      // Número de factura del proveedor (CPP)
 }
 

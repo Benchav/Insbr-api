@@ -10,6 +10,7 @@ const createCustomerSchema = z.object({
     address: z.string().min(5),
     taxId: z.string().optional(),
     creditLimit: z.number().int().min(0),
+    creditDays: z.number().int().min(1).max(365).default(30), // Días de crédito (1-365)
     type: z.enum(['RETAIL', 'WHOLESALE'])
 });
 
@@ -124,6 +125,13 @@ export function createCustomerController(customerService: CustomerService): Rout
      *                 type: string
      *               creditLimit:
      *                 type: integer
+     *                 description: Límite de crédito en centavos
+     *               creditDays:
+     *                 type: integer
+     *                 minimum: 1
+     *                 maximum: 365
+     *                 default: 30
+     *                 description: Días de crédito permitidos para calcular fecha de vencimiento
      *               type:
      *                 type: string
      *                 enum: [RETAIL, WHOLESALE]

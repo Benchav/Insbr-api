@@ -118,6 +118,7 @@ export async function seedData(): Promise<void> {
         taxId: 'J0310000054321',
         creditLimit: 50000000,
         currentDebt: 0,
+        creditDays: 30, // 30 días de crédito para mayoristas
         type: 'WHOLESALE' as const,
         isActive: true,
         createdAt: new Date(),

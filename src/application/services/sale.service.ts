@@ -66,8 +66,12 @@ export class SaleService {
 
         // 5. Si es venta a crédito, crear cuenta por cobrar (CXC)
         if (data.type === 'CREDIT' && data.customerId) {
+            // Obtener días de crédito del cliente
+            const customer = await this.customerRepository.findById(data.customerId);
+            const creditDays = customer?.creditDays || 30; // Fallback a 30 días si no está definido
+
             // Usar zona horaria de Nicaragua para calcular fecha de vencimiento
-            const dueDate = addDaysNicaragua(getNicaraguaNow(), 30); // 30 días por defecto
+            const dueDate = addDaysNicaragua(getNicaraguaNow(), creditDays);
 
             const creditAccountData: CreateCreditAccountDto = {
                 type: 'CXC',
@@ -76,7 +80,6 @@ export class SaleService {
                 saleId: sale.id,
                 totalAmount: data.total,
                 dueDate,
-                deliveryDate: (data as any).deliveryDate ? new Date((data as any).deliveryDate) : undefined,
                 notes: (data as any).notes
             };
 

@@ -12,7 +12,6 @@ const createSaleSchema = z.object({
         quantity: z.number().int().positive(),
         unitPrice: z.number().int().positive()
     })).min(1),
-    deliveryDate: z.string().optional(),  // Fecha de entrega para encargos
     notes: z.string().optional()
 });
 
@@ -57,10 +56,6 @@ export function createSaleController(saleService: SaleService): Router {
      *                       type: integer
      *                     unitPrice:
      *                       type: integer
-     *               deliveryDate:
-     *                 type: string
-     *                 format: date
-     *                 description: Fecha de entrega para encargos (opcional)
      *               notes:
      *                 type: string
      *     responses:

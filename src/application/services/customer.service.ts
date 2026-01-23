@@ -12,10 +12,12 @@ export class CustomerService {
         address: string;
         taxId?: string;
         creditLimit: number;
+        creditDays?: number; // Días de crédito (opcional, default 30)
         type: 'RETAIL' | 'WHOLESALE';
     }): Promise<Customer> {
         return this.customerRepository.create({
             ...data,
+            creditDays: data.creditDays || 30, // Default 30 días
             isActive: true
         });
     }
