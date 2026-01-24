@@ -19,7 +19,8 @@ const createPurchaseSchema = z.object({
     type: z.enum(['CASH', 'CREDIT']),
     paymentMethod: z.enum(['CASH', 'TRANSFER', 'CHECK']).optional(),
     invoiceNumber: z.string().optional(),
-    notes: z.string().optional()
+    notes: z.string().optional(),
+    dueDate: z.string().datetime().optional().transform(str => str ? new Date(str) : undefined) // Transform string to Date
 });
 
 export function createPurchaseController(purchaseService: PurchaseService): Router {

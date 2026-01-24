@@ -41,4 +41,4 @@ export interface Purchase {
     createdAt: Date;
 }
 
-export type CreatePurchaseDto = Omit<Purchase, 'id' | 'createdAt'>;
+export type CreatePurchaseDto = Omit<Purchase, 'id' | 'createdAt'> & { dueDate?: Date };

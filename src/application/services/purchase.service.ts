@@ -78,8 +78,10 @@ export class PurchaseService {
 
         // 4. Si es compra a crédito, crear cuenta por pagar (CPP)
         if (data.type === 'CREDIT') {
-            // Usar zona horaria de Nicaragua para calcular fecha de vencimiento
-            const dueDate = addDaysNicaragua(getNicaraguaNow(), supplier.creditDays);
+            // Usar fecha manual si existe, sino calcular según días de crédito
+            const dueDate = data.dueDate
+                ? data.dueDate
+                : addDaysNicaragua(getNicaraguaNow(), supplier.creditDays);
 
             const creditAccountData: CreateCreditAccountDto = {
                 type: 'CPP',
