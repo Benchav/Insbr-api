@@ -55,7 +55,13 @@ export class PurchaseRepositoryTurso implements IPurchaseRepository {
 
     async findById(id: string): Promise<Purchase | null> {
         const purchaseResult = await tursoClient.execute({
-            sql: 'SELECT * FROM purchases WHERE id = ?',
+            sql: `
+                SELECT p.*, s.name as supplier_name, b.name as branch_name
+                FROM purchases p
+                LEFT JOIN suppliers s ON p.supplier_id = s.id
+                LEFT JOIN branches b ON p.branch_id = b.id
+                WHERE p.id = ?
+            `,
             args: [id]
         });
 
@@ -73,25 +79,31 @@ export class PurchaseRepositoryTurso implements IPurchaseRepository {
         branchId: string,
         filters?: { startDate?: Date; endDate?: Date; supplierId?: string }
     ): Promise<Purchase[]> {
-        let sql = 'SELECT * FROM purchases WHERE branch_id = ?';
+        let sql = `
+            SELECT p.*, s.name as supplier_name, b.name as branch_name
+            FROM purchases p
+            LEFT JOIN suppliers s ON p.supplier_id = s.id
+            LEFT JOIN branches b ON p.branch_id = b.id
+            WHERE p.branch_id = ?
+        `;
         const args: any[] = [branchId];
 
         if (filters?.startDate) {
-            sql += ' AND created_at >= ?';
+            sql += ' AND p.created_at >= ?';
             args.push(filters.startDate.toISOString());
         }
 
         if (filters?.endDate) {
-            sql += ' AND created_at <= ?';
+            sql += ' AND p.created_at <= ?';
             args.push(filters.endDate.toISOString());
         }
 
         if (filters?.supplierId) {
-            sql += ' AND supplier_id = ?';
+            sql += ' AND p.supplier_id = ?';
             args.push(filters.supplierId);
         }
 
-        sql += ' ORDER BY created_at DESC';
+        sql += ' ORDER BY p.created_at DESC';
 
         const purchasesResult = await tursoClient.execute({ sql, args });
 
@@ -109,7 +121,14 @@ export class PurchaseRepositoryTurso implements IPurchaseRepository {
 
     async findBySupplier(supplierId: string): Promise<Purchase[]> {
         const purchasesResult = await tursoClient.execute({
-            sql: 'SELECT * FROM purchases WHERE supplier_id = ? ORDER BY created_at DESC',
+            sql: `
+                SELECT p.*, s.name as supplier_name, b.name as branch_name
+                FROM purchases p
+                LEFT JOIN suppliers s ON p.supplier_id = s.id
+                LEFT JOIN branches b ON p.branch_id = b.id
+                WHERE p.supplier_id = ? 
+                ORDER BY p.created_at DESC
+            `,
             args: [supplierId]
         });
 
@@ -178,7 +197,9 @@ export class PurchaseRepositoryTurso implements IPurchaseRepository {
         return {
             id: purchaseRow.id as string,
             branchId: purchaseRow.branch_id as string,
+            branchName: purchaseRow.branch_name as string | undefined,
             supplierId: purchaseRow.supplier_id as string,
+            supplierName: purchaseRow.supplier_name as string | undefined,
             items,
             subtotal: Number(purchaseRow.subtotal),
             tax: Number(purchaseRow.tax),

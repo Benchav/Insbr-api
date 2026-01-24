@@ -14,7 +14,9 @@ export interface PurchaseItem {
 export interface Purchase {
     id: string;
     branchId: string;
+    branchName?: string;
     supplierId: string;
+    supplierName?: string;
 
     // Items comprados
     items: PurchaseItem[];
