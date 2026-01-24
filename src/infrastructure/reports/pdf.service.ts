@@ -139,41 +139,51 @@ export class PdfService {
                 doc.font("Helvetica-Bold").fontSize(9).text("DETALLE DE COMPRA:");
                 doc.moveDown(0.2);
 
-                // Headers Items (Ajustado para evitar wrap)
+                // Headers Items (Posicionamiento Absoluto)
+                let y = doc.y;
                 doc.fontSize(7);
-                const colQtyW = 25;
-                const colDescW = 125;
-                const colTotalW = 56;
 
-                doc.text("CANT", margin, doc.y, { width: colQtyW, continued: true });
-                doc.text("DESCRIPCION", { width: colDescW, continued: true });
-                doc.text("TOTAL", { width: colTotalW, align: "right" });
-                doc.moveDown(0.2);
+                // Definición de columnas (Ajustado para mejor espaciado)
+                // Ancho total disponible: 206pt (226 - 10 - 10)
+                const xQty = margin;          // 10
+                const wQty = 30;              // +5pt
+
+                const xDesc = margin + wQty + 5; // 45 (espacio extra)
+                const wDesc = 115;            // -5pt
+
+                const xTotal = margin + wQty + 5 + wDesc; // 160
+                const wTotal = 56; // Resto hasta 216 (alineado a la derecha)
+
+                doc.text("CANT", xQty, y, { width: wQty, align: 'left' });
+                doc.text("DESCRIPCION", xDesc, y, { width: wDesc, align: 'left' });
+                doc.text("TOTAL", xTotal, y, { width: wTotal, align: 'right' });
+
+                doc.y = y + 10; // Avanzar manual
                 this.drawThinLine(doc);
+                doc.moveDown(0.2);
 
                 // Items Loop
                 doc.fontSize(8).font("Helvetica");
                 ticketData.purchase.items.forEach((item: any) => {
-                    const y = doc.y;
+                    y = doc.y;
                     const qty = `${item.quantity}`;
                     const total = formatCurrency(item.subtotal / 100);
 
-                    // Columna Cantidad
-                    doc.text(qty, margin, y, { width: colQtyW });
+                    // 1. Cantidad
+                    doc.text(qty, xQty, y, { width: wQty, align: 'left' });
 
-                    // Columna Descripción
-                    doc.text(item.productName, margin + colQtyW, y, { width: colDescW, align: 'left' });
+                    // 2. Total (Dibujarlo antes para asegurar posición)
+                    doc.text(total, xTotal, y, { width: wTotal, align: 'right' });
 
-                    // Columna Total
-                    doc.text(total, margin + colQtyW + colDescW, y, { width: colTotalW, align: "right" });
+                    // 3. Descripción (Puede saltar linea)
+                    doc.text(item.productName, xDesc, y, { width: wDesc, align: 'left' });
 
-                    // Calcular altura
-                    const descHeight = doc.heightOfString(item.productName, { width: colDescW });
+                    // Calcular nueva altura
+                    const descHeight = doc.heightOfString(item.productName, { width: wDesc });
                     const rowHeight = Math.max(descHeight, 10);
-                    doc.y = y + rowHeight + 4; // Un poco más de espacio entre items
+                    doc.y = y + rowHeight + 3;
                 });
 
-                doc.moveDown(0.2);
                 this.drawThinLine(doc);
 
                 // --- TOTALES ---
@@ -181,18 +191,30 @@ export class PdfService {
                 const paid = ticketData.account.paid / 100;
                 const balance = ticketData.account.balance / 100;
 
-                doc.moveDown(0.3);
-                doc.font("Helvetica-Bold").fontSize(10);
-                this.drawTotalLine(doc, "TOTAL COMPRA:", formatCurrency(total), margin, contentWidth);
-
-                doc.font("Helvetica").fontSize(9);
-                this.drawTotalLine(doc, "Total Abonado:", `-${formatCurrency(paid)}`, margin, contentWidth);
-
-                doc.moveDown(0.3);
-                doc.font("Helvetica-Bold").fontSize(12);
-                this.drawTotalLine(doc, "SALDO ACTUAL:", formatCurrency(balance), margin, contentWidth);
-
                 doc.moveDown(0.5);
+
+                // Helper para linea de total con alineación perfecta
+                const printTotalRow = (label: string, val: string, isBold = false, fontSize = 9) => {
+                    const currentY = doc.y;
+                    doc.font(isBold ? "Helvetica-Bold" : "Helvetica").fontSize(fontSize);
+
+                    // Label Izquierda
+                    doc.text(label, margin, currentY, { width: contentWidth * 0.6, align: 'left' });
+
+                    // Valor Derecha (misma Y)
+                    doc.text(val, margin, currentY, { width: contentWidth, align: 'right' });
+
+                    // Avanzar según tamaño de fuente
+                    doc.y = currentY + fontSize + 4;
+                };
+
+                printTotalRow("TOTAL COMPRA:", formatCurrency(total), true, 10);
+                printTotalRow("Total Abonado:", `-${formatCurrency(paid)}`, false, 9);
+
+                doc.moveDown(0.2);
+                printTotalRow("SALDO ACTUAL:", formatCurrency(balance), true, 14); // Más grande y claro
+
+                doc.moveDown(0.2);
                 this.drawDoubleLine(doc);
                 doc.moveDown(0.5);
 
@@ -202,32 +224,39 @@ export class PdfService {
                     doc.moveDown(0.2);
                     doc.font("Helvetica").fontSize(7);
 
-                    // Headers Tabla Pagos (Reajustado para evitar overlap)
-                    // Total width ~206px (226 - 20 margin)
-                    const pColDateW = 55;
-                    const pColRefW = 85;
-                    const pColAmountW = 66;
+                    // Headers Tabla Pagos (Posicionamiento Absoluto)
+                    y = doc.y;
 
-                    doc.text("FECHA", margin, doc.y, { width: pColDateW, continued: true });
-                    doc.text("REF/METODO", { width: pColRefW, continued: true, align: 'left' });
-                    doc.text("MONTO", { width: pColAmountW, align: "right" });
+                    const xDate = margin;
+                    const wDate = 50;
 
-                    doc.moveDown(0.2); // Forzar nueva linea para linea divisoria
+                    const xRef = margin + wDate + 5;
+                    const wRef = 85;
+
+                    const xAmount = margin + wDate + 5 + wRef;
+                    const wAmount = 66;
+
+                    doc.text("FECHA", xDate, y, { width: wDate, align: 'left' });
+                    doc.text("REF/METODO", xRef, y, { width: wRef, align: 'left' });
+                    doc.text("MONTO", xAmount, y, { width: wAmount, align: 'right' });
+
+                    doc.y = y + 10;
                     this.drawThinLine(doc);
                     doc.font("Helvetica").fontSize(8);
 
                     ticketData.payments.forEach((p: any) => {
-                        const y = doc.y;
-                        const date = this.formatDate(new Date(p.date)); // DD/MM/YYYY
+                        y = doc.y;
+                        const date = this.formatDate(new Date(p.date));
                         let ref = p.reference || p.method || '-';
-                        if (ref.length > 12) ref = ref.substring(0, 12); // Truncar ref
                         const amount = formatCurrency(p.amount / 100);
 
-                        doc.text(date, margin, y, { width: pColDateW });
-                        doc.text(ref, margin + pColDateW, y, { width: pColRefW, align: 'left' });
-                        doc.text(amount, margin + pColDateW + pColRefW, y, { width: pColAmountW, align: "right" });
+                        doc.text(date, xDate, y, { width: wDate, align: 'left' });
+                        doc.text(ref, xRef, y, { width: wRef, align: 'left' });
+                        doc.text(amount, xAmount, y, { width: wAmount, align: 'right' });
 
-                        doc.moveDown(1.2); // Espacio fijo
+                        // Altura basada en referencia
+                        const refHeight = doc.heightOfString(ref, { width: wRef });
+                        doc.y = y + Math.max(refHeight, 10) + 3;
                     });
                 } else {
                     doc.font("Helvetica-Italic").fontSize(8).text("No hay abonos registrados", { align: "center" });
