@@ -56,9 +56,10 @@ export class CreditAccountRepositoryTurso implements ICreditAccountRepository {
     async findById(id: string): Promise<CreditAccount | null> {
         const result = await tursoClient.execute({
             sql: `
-                SELECT ca.*, s.name as supplier_name 
+                SELECT ca.*, s.name as supplier_name, c.name as customer_name
                 FROM credit_accounts ca
                 LEFT JOIN suppliers s ON ca.supplier_id = s.id
+                LEFT JOIN customers c ON ca.customer_id = c.id
                 WHERE ca.id = ?
             `,
             args: [id]
@@ -74,9 +75,10 @@ export class CreditAccountRepositoryTurso implements ICreditAccountRepository {
         filters?: { type?: CreditAccountType; status?: CreditAccountStatus }
     ): Promise<CreditAccount[]> {
         let sql = `
-            SELECT ca.*, s.name as supplier_name 
+            SELECT ca.*, s.name as supplier_name, c.name as customer_name
             FROM credit_accounts ca
             LEFT JOIN suppliers s ON ca.supplier_id = s.id
+            LEFT JOIN customers c ON ca.customer_id = c.id
             WHERE ca.branch_id = ?
         `;
         const args: any[] = [branchId];
@@ -100,9 +102,10 @@ export class CreditAccountRepositoryTurso implements ICreditAccountRepository {
     async findBySupplier(supplierId: string): Promise<CreditAccount[]> {
         const result = await tursoClient.execute({
             sql: `
-                SELECT ca.*, s.name as supplier_name 
+                SELECT ca.*, s.name as supplier_name, c.name as customer_name
                 FROM credit_accounts ca
                 LEFT JOIN suppliers s ON ca.supplier_id = s.id
+                LEFT JOIN customers c ON ca.customer_id = c.id
                 WHERE ca.supplier_id = ? 
                 ORDER BY ca.created_at DESC
             `,
@@ -114,7 +117,14 @@ export class CreditAccountRepositoryTurso implements ICreditAccountRepository {
 
     async findByCustomer(customerId: string): Promise<CreditAccount[]> {
         const result = await tursoClient.execute({
-            sql: 'SELECT * FROM credit_accounts WHERE customer_id = ? ORDER BY created_at DESC',
+            sql: `
+                SELECT ca.*, s.name as supplier_name, c.name as customer_name
+                FROM credit_accounts ca
+                LEFT JOIN suppliers s ON ca.supplier_id = s.id
+                LEFT JOIN customers c ON ca.customer_id = c.id
+                WHERE ca.customer_id = ? 
+                ORDER BY ca.created_at DESC
+            `,
             args: [customerId]
         });
 
@@ -175,6 +185,7 @@ export class CreditAccountRepositoryTurso implements ICreditAccountRepository {
             supplierId: row.supplier_id as string | undefined,
             supplierName: row.supplier_name as string | undefined,
             customerId: row.customer_id as string | undefined,
+            customerName: row.customer_name as string | undefined,
             purchaseId: row.purchase_id as string | undefined,
             saleId: row.sale_id as string | undefined,
             totalAmount: Number(row.total_amount),

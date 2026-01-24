@@ -13,6 +13,7 @@ export interface CreditAccount {
     supplierId?: string; // Para CPP
     supplierName?: string; // Nombre del proveedor (Join)
     customerId?: string; // Para CXC
+    customerName?: string; // Nombre del cliente (Join)
 
     // Referencia a la transacción origen
     purchaseId?: string; // Si es CPP
