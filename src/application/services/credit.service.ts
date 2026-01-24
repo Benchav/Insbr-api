@@ -1,6 +1,7 @@
 import { ICreditAccountRepository, ICreditPaymentRepository } from '../../core/interfaces/credit-account.repository.js';
 import { ICashMovementRepository } from '../../core/interfaces/cash-movement.repository.js';
 import { ICustomerRepository } from '../../core/interfaces/customer.repository.js';
+import { IPurchaseRepository } from '../../core/interfaces/purchase.repository.js';
 import { CreditAccount, CreditPayment, CreateCreditPaymentDto, CreditAccountStatus } from '../../core/entities/credit-account.entity.js';
 import { CreateCashMovementDto } from '../../core/entities/cash-movement.entity.js';
 
@@ -9,7 +10,8 @@ export class CreditService {
         private creditAccountRepository: ICreditAccountRepository,
         private creditPaymentRepository: ICreditPaymentRepository,
         private cashMovementRepository: ICashMovementRepository,
-        private customerRepository: ICustomerRepository
+        private customerRepository: ICustomerRepository,
+        private purchaseRepository: IPurchaseRepository
     ) { }
 
     async registerPayment(
@@ -135,5 +137,58 @@ export class CreditService {
 
         // 4. Eliminar la cuenta de crédito
         await this.creditAccountRepository.delete(creditAccountId);
+    }
+    async generateTicket(creditAccountId: string): Promise<any> {
+        const creditAccount = await this.creditAccountRepository.findById(creditAccountId);
+        if (!creditAccount) {
+            throw new Error('Cuenta de crédito no encontrada');
+        }
+
+        if (creditAccount.type !== 'CPP') {
+            throw new Error('Solo se pueden generar tickets de cuentas por pagar (CPP)');
+        }
+
+        // Obtener detalles de la compra (productos)
+        let items: any[] = [];
+        let purchaseDate = creditAccount.createdAt;
+
+        if (creditAccount.purchaseId) {
+            const purchase = await this.purchaseRepository.findById(creditAccount.purchaseId);
+            if (purchase) {
+                items = purchase.items;
+                purchaseDate = purchase.createdAt;
+            }
+        }
+
+        // Obtener historial de pagos
+        const payments = await this.creditPaymentRepository.findByCreditAccount(creditAccountId);
+
+        return {
+            account: {
+                id: creditAccount.id,
+                invoiceNumber: creditAccount.invoiceNumber || 'N/A',
+                status: creditAccount.status,
+                dueDate: creditAccount.dueDate,
+                total: creditAccount.totalAmount,
+                paid: creditAccount.paidAmount,
+                balance: creditAccount.balanceAmount,
+                supplierName: creditAccount.supplierName || 'Proveedor Desconocido'
+            },
+            purchase: {
+                date: purchaseDate,
+                items: items.map(i => ({
+                    productName: i.productName,
+                    quantity: i.quantity,
+                    unitCost: i.unitCost,
+                    subtotal: i.subtotal
+                }))
+            },
+            payments: payments.map(p => ({
+                amount: p.amount,
+                date: p.createdAt,
+                method: p.paymentMethod,
+                reference: p.reference
+            }))
+        };
     }
 }

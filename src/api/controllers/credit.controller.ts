@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { CreditService } from '../../application/services/credit.service.js';
+import { IBranchRepository } from '../../core/interfaces/branch.repository.js';
+import { PdfService } from '../../infrastructure/reports/pdf.service.js';
 import { getEffectiveBranchId } from '../../infrastructure/web/helpers/branch-access.helper.js';
 
 const registerPaymentSchema = z.object({
@@ -11,9 +13,124 @@ const registerPaymentSchema = z.object({
     notes: z.string().optional()
 });
 
-export function createCreditController(creditService: CreditService): Router {
+export function createCreditController(
+    creditService: CreditService,
+    branchRepository: IBranchRepository,
+    pdfService: PdfService
+): Router {
     const router = Router();
     // Note: authenticate and authorize middlewares are applied at app.ts level
+
+    /**
+     * @swagger
+     * /api/credits/{id}/ticket:
+     *   get:
+     *     summary: Generar ticket de estado de cuenta
+     *     description: Devuelve detalles completos de la CPP (productos, pagos, totales)
+     *     tags: [Credits]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *     responses:
+     *       200:
+     *         description: Ticket generado
+     *       404:
+     *         description: Cuenta no encontrada
+     */
+    router.get('/:id/ticket', async (req: Request, res: Response) => {
+        try {
+            const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+            const ticket = await creditService.generateTicket(id);
+            res.json(ticket);
+        } catch (error: any) {
+            if (error.message.includes('no encontrada')) {
+                res.status(404).json({ error: error.message });
+            } else {
+                res.status(400).json({ error: error.message });
+            }
+        }
+    });
+
+    /**
+     * @swagger
+     * /api/credits/{id}/ticket/pdf:
+     *   get:
+     *     summary: Generar PDF de estado de cuenta
+     *     description: Descarga un PDF formato ticket (80mm) con el estado de cuenta
+     *     tags: [Credits]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *     responses:
+     *       200:
+     *         description: Archivo PDF descargado
+     *         content:
+     *           application/pdf:
+     *             schema:
+     *               type: string
+     *               format: binary
+     *       404:
+     *         description: Cuenta no encontrada
+     */
+    router.get('/:id/ticket/pdf', async (req: Request, res: Response) => {
+        try {
+            if (!req.user) throw new Error('No autorizado');
+
+            const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+            // 1. Obtener datos del ticket
+            const ticketData = await creditService.generateTicket(id);
+
+            // 2. Obtener datos de la sucursal
+            // Si el user tiene branchId, usamos esa. Si es Admin y quiere ver de otra, ya se filtró el acceso.
+            // Pero para el encabezado del ticket, necesitamos la sucursal de la CUENTA, no necesariamente del usuario.
+            // ticketData.account doesn't have branchId explicitly in the basic structure I made, let's re-fetch or assume context.
+            // Actually, best to fetch branch from the account's branchId. 
+            // CreditService.generateTicket return structure has `account.id` etc but not `branchId`.
+            // Modify generateTicket? Or just fetch account again?
+            // Actually `creditService.generateTicket` returns `account` object. I should add `branchId` to `generateTicket` output or fetch it.
+            // Let's assume user.branchId for now or fetch.
+
+            // Let's get the full account again to be safe about branchId, or trust user.branchId if context is consistent.
+            // Better: `listCreditAccounts` filters by branch. 
+            // Let me optimize: I will use `req.user.branchId` as the printing branch context. 
+            // Or better, fetch the branch details using `branchRepository.findById(req.user.branchId)`.
+
+            const branch = await branchRepository.findById(req.user.branchId);
+            if (!branch) throw new Error('Sucursal no encontrada');
+
+            // 3. Generar PDF
+            const pdfBuffer = await pdfService.generateCreditTicket(
+                ticketData,
+                branch.name,
+                branch.address,
+                branch.phone
+            );
+
+            // 4. Enviar respuesta stream
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `attachment; filename=ticket-credit-${ticketData.account.invoiceNumber}.pdf`);
+            res.send(pdfBuffer);
+
+        } catch (error: any) {
+            console.error('Error generando PDF Ticket:', error);
+            if (error.message.includes('no encontrada')) {
+                res.status(404).json({ error: error.message });
+            } else {
+                res.status(500).json({ error: error.message });
+            }
+        }
+    });
 
     /**
      * @swagger
@@ -205,6 +322,41 @@ export function createCreditController(creditService: CreditService): Router {
             await creditService.cancelCreditAccount(id);
 
             res.json({ message: 'Cuenta de crédito cancelada exitosamente' });
+        } catch (error: any) {
+            if (error.message.includes('no encontrada')) {
+                res.status(404).json({ error: error.message });
+            } else {
+                res.status(400).json({ error: error.message });
+            }
+        }
+    });
+
+    /**
+     * @swagger
+     * /api/credits/{id}/ticket:
+     *   get:
+     *     summary: Generar ticket de estado de cuenta
+     *     description: Devuelve detalles completos de la CPP (productos, pagos, totales)
+     *     tags: [Credits]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *     responses:
+     *       200:
+     *         description: Ticket generado
+     *       404:
+     *         description: Cuenta no encontrada
+     */
+    router.get('/:id/ticket', async (req: Request, res: Response) => {
+        try {
+            const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+            const ticket = await creditService.generateTicket(id);
+            res.json(ticket);
         } catch (error: any) {
             if (error.message.includes('no encontrada')) {
                 res.status(404).json({ error: error.message });

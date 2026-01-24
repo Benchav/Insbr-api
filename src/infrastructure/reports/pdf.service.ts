@@ -67,8 +67,178 @@ export class PdfService {
     }
 
     /**
-     * Dibuja la cabecera del ticket con información de la sucursal
+     * Genera un estado de cuenta de crédito (CPP) en formato ticket 80mm
+     * @param ticketData Datos completos del ticket (cuenta, productos, pagos)
+     * @param branchName Nombre de la sucursal
+     * @param branchAddress Dirección de la sucursal
+     * @param branchPhone Teléfono de la sucursal
      */
+    async generateCreditTicket(
+        ticketData: any,
+        branchName: string,
+        branchAddress: string,
+        branchPhone: string
+    ): Promise<Buffer> {
+        return new Promise((resolve, reject) => {
+            try {
+                // Configuración de papel térmico (226px ancho ≈ 80mm)
+                const doc = new PDFDocument({
+                    margin: 10,
+                    size: [226, 1000] // Altura dinámica
+                });
+
+                const buffers: Buffer[] = [];
+                doc.on("data", buffers.push.bind(buffers));
+                doc.on("end", () => resolve(Buffer.concat(buffers)));
+                doc.on("error", reject);
+
+                // --- CABECERA ---
+                const pageWidth = 226;
+                const margin = 10;
+                const contentWidth = pageWidth - 2 * margin;
+
+                doc.font("Helvetica-Bold").fontSize(12)
+                    .text("ERP INSUMOS", margin, doc.y, { width: contentWidth, align: "center" });
+                doc.moveDown(0.2);
+                doc.fontSize(10)
+                    .text(branchName.toUpperCase(), { width: contentWidth, align: "center" });
+                doc.fontSize(8).font("Helvetica")
+                    .text(branchAddress, { width: contentWidth, align: "center" });
+                doc.text(`Tel: ${branchPhone}`, { width: contentWidth, align: "center" });
+
+                doc.moveDown(0.5);
+                this.drawDoubleLine(doc);
+                doc.moveDown(0.5);
+
+                // --- TÍTULO ---
+                doc.font("Helvetica-Bold").fontSize(10)
+                    .text("ESTADO DE CUENTA (CPP)", { width: contentWidth, align: "center" });
+                doc.moveDown(0.5);
+
+                // --- INFO CUENTA ---
+                doc.font("Helvetica").fontSize(9);
+                doc.text(`Proveedor: ${ticketData.account.supplierName}`);
+                doc.text(`Factura Prov: ${ticketData.account.invoiceNumber}`);
+
+                const dueDate = new Date(ticketData.account.dueDate);
+                doc.text(`Vence: ${this.formatDate(dueDate)}`);
+
+                let statusText = ticketData.account.status;
+                if (statusText === 'PENDIENTE') statusText = 'PENDIENTE DE PAGO';
+                if (statusText === 'PAGADO_PARCIAL') statusText = 'PAGO PARCIAL';
+
+                doc.font("Helvetica-Bold");
+                doc.text(`Estado: ${statusText}`);
+                doc.font("Helvetica");
+
+                doc.moveDown(0.5);
+                this.drawDottedLine(doc);
+                doc.moveDown(0.5);
+
+                // --- DETALLE DE COMPRA ---
+                doc.font("Helvetica-Bold").fontSize(9).text("DETALLE DE COMPRA:");
+                doc.moveDown(0.2);
+
+                // Headers Items
+                doc.fontSize(7);
+                doc.text("CANT", margin, doc.y, { width: 30, continued: true });
+                doc.text("DESCRIPCION", { width: 120, continued: true });
+                doc.text("TOTAL", { width: 56, align: "right" });
+                doc.moveDown(0.2);
+                this.drawThinLine(doc);
+
+                // Items Loop
+                doc.fontSize(8).font("Helvetica");
+                ticketData.purchase.items.forEach((item: any) => {
+                    const y = doc.y;
+                    const qty = `${item.quantity}`;
+                    const total = formatCurrency(item.subtotal / 100);
+
+                    // Columna Cantidad
+                    doc.text(qty, margin, y, { width: 30 });
+
+                    // Columna Descripción (Multilinea si es necesario, pero sin romper precios)
+                    // Calculamos altura para saber donde poner el precio
+                    doc.text(item.productName, margin + 30, y, { width: 120, align: 'left' });
+
+                    // Columna Total (Alineada a la derecha en la misma linea base)
+                    // Si la descripción ocupó varias lineas, el precio va en la primera o al final?
+                    // Mejor forzamos el precio a estar en la misma Y que el inicio del item
+                    doc.text(total, margin + 150, y, { width: 56, align: "right" });
+
+                    // Mover el cursor abajo dependiendo de lo que ocupó más espacio (descripción usualmente)
+                    const descHeight = doc.heightOfString(item.productName, { width: 120 });
+                    const rowHeight = Math.max(descHeight, 10); // Minimo 10
+                    doc.y = y + rowHeight + 2;
+                });
+
+                doc.moveDown(0.2);
+                this.drawThinLine(doc);
+
+                // --- TOTALES ---
+                const total = ticketData.account.total / 100;
+                const paid = ticketData.account.paid / 100;
+                const balance = ticketData.account.balance / 100;
+
+                doc.moveDown(0.3);
+                doc.font("Helvetica-Bold").fontSize(10);
+                this.drawTotalLine(doc, "TOTAL COMPRA:", formatCurrency(total), margin, contentWidth);
+
+                doc.font("Helvetica").fontSize(9);
+                this.drawTotalLine(doc, "Total Abonado:", `-${formatCurrency(paid)}`, margin, contentWidth);
+
+                doc.moveDown(0.3);
+                doc.font("Helvetica-Bold").fontSize(12);
+                this.drawTotalLine(doc, "SALDO ACTUAL:", formatCurrency(balance), margin, contentWidth);
+
+                doc.moveDown(0.5);
+                this.drawDoubleLine(doc);
+                doc.moveDown(0.5);
+
+                // --- HISTORIAL PAGOS ---
+                if (ticketData.payments.length > 0) {
+                    doc.font("Helvetica-Bold").fontSize(9).text("HISTORIAL DE ABONOS:");
+                    doc.moveDown(0.2);
+                    doc.font("Helvetica").fontSize(7);
+
+                    // Headers Tabla Pagos
+                    const colDateW = 50;
+                    const colRefW = 90;
+                    const colAmountW = 66;
+
+                    doc.text("FECHA", margin, doc.y, { width: colDateW, continued: true });
+                    doc.text("REF/METODO", { width: colRefW, continued: true, align: 'left' });
+                    doc.text("MONTO", { width: colAmountW, align: "right" });
+
+                    this.drawThinLine(doc);
+                    doc.font("Helvetica").fontSize(8);
+
+                    ticketData.payments.forEach((p: any) => {
+                        const y = doc.y;
+                        const date = this.formatDate(new Date(p.date)); // DD/MM/YYYY
+                        let ref = p.reference || p.method || '-';
+                        const amount = formatCurrency(p.amount / 100);
+
+                        doc.text(date, margin, y, { width: colDateW });
+                        doc.text(ref, margin + colDateW, y, { width: colRefW, align: 'left' });
+                        doc.text(amount, margin + colDateW + colRefW, y, { width: colAmountW, align: "right" });
+
+                        // Avanzar linea
+                        doc.moveDown(0.2);
+                    });
+                } else {
+                    doc.font("Helvetica-Italic").fontSize(8).text("No hay abonos registrados", { align: "center" });
+                }
+
+                doc.moveDown(1);
+                doc.font("Helvetica").fontSize(7).text("Generado: " + new Date().toLocaleString(), { align: "center" });
+
+                doc.end();
+            } catch (error) {
+                reject(error);
+            }
+        });
+    }
     private drawTicketHeader(doc: PDFKit.PDFDocument, branch: Branch): void {
         const pageWidth = 226;
         const margin = 10;
@@ -415,24 +585,27 @@ export class PdfService {
     }
 
     /**
-     * Formatea una fecha en formato DD/MM/YYYY
+     * Formatea una fecha en formato DD/MM/YYYY (Zona Horaria Nicaragua)
      */
     private formatDate(date: Date): string {
-        const day = date.getDate().toString().padStart(2, '0');
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const year = date.getFullYear();
-        return `${day}/${month}/${year}`;
+        return new Intl.DateTimeFormat('es-NI', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            timeZone: 'America/Managua'
+        }).format(date);
     }
 
     /**
-     * Formatea una hora en formato HH:MM AM/PM
+     * Formatea una hora en formato HH:MM AM/PM (Zona Horaria Nicaragua)
      */
     private formatTime(date: Date): string {
-        let hours = date.getHours();
-        const minutes = date.getMinutes().toString().padStart(2, '0');
-        const ampm = hours >= 12 ? 'PM' : 'AM';
-        hours = hours % 12 || 12;
-        return `${hours}:${minutes} ${ampm}`;
+        return new Intl.DateTimeFormat('es-NI', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+            timeZone: 'America/Managua'
+        }).format(date);
     }
 }
 

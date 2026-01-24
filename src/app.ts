@@ -87,7 +87,8 @@ export function createApp(): Express {
     creditAccountRepository,
     creditPaymentRepository,
     cashMovementRepository,
-    customerRepository
+    customerRepository,
+    purchaseRepository
   );
 
   const transferService = new TransferService(
@@ -144,7 +145,11 @@ export function createApp(): Express {
   app.use('/api/purchases', authenticate, authorize(['ADMIN', 'GERENTE']), createPurchaseController(purchaseService));
 
   // Créditos - Todos pueden ver y registrar abonos
-  app.use('/api/credits', authenticate, authorize(['ADMIN', 'GERENTE', 'CAJERO']), createCreditController(creditService));
+  app.use('/api/credits', authenticate, authorize(['ADMIN', 'GERENTE', 'CAJERO']), createCreditController(
+    creditService,
+    branchRepository,
+    pdfService
+  ));
 
   // Transferencias - Solo ADMIN y GERENTE
   app.use('/api/transfers', authenticate, authorize(['ADMIN', 'GERENTE']), createTransferController(transferService));
