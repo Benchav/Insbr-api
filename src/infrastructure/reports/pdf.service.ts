@@ -139,11 +139,15 @@ export class PdfService {
                 doc.font("Helvetica-Bold").fontSize(9).text("DETALLE DE COMPRA:");
                 doc.moveDown(0.2);
 
-                // Headers Items
+                // Headers Items (Ajustado para evitar wrap)
                 doc.fontSize(7);
-                doc.text("CANT", margin, doc.y, { width: 30, continued: true });
-                doc.text("DESCRIPCION", { width: 120, continued: true });
-                doc.text("TOTAL", { width: 56, align: "right" });
+                const colQtyW = 25;
+                const colDescW = 125;
+                const colTotalW = 56;
+
+                doc.text("CANT", margin, doc.y, { width: colQtyW, continued: true });
+                doc.text("DESCRIPCION", { width: colDescW, continued: true });
+                doc.text("TOTAL", { width: colTotalW, align: "right" });
                 doc.moveDown(0.2);
                 this.drawThinLine(doc);
 
@@ -155,21 +159,18 @@ export class PdfService {
                     const total = formatCurrency(item.subtotal / 100);
 
                     // Columna Cantidad
-                    doc.text(qty, margin, y, { width: 30 });
+                    doc.text(qty, margin, y, { width: colQtyW });
 
-                    // Columna Descripción (Multilinea si es necesario, pero sin romper precios)
-                    // Calculamos altura para saber donde poner el precio
-                    doc.text(item.productName, margin + 30, y, { width: 120, align: 'left' });
+                    // Columna Descripción
+                    doc.text(item.productName, margin + colQtyW, y, { width: colDescW, align: 'left' });
 
-                    // Columna Total (Alineada a la derecha en la misma linea base)
-                    // Si la descripción ocupó varias lineas, el precio va en la primera o al final?
-                    // Mejor forzamos el precio a estar en la misma Y que el inicio del item
-                    doc.text(total, margin + 150, y, { width: 56, align: "right" });
+                    // Columna Total
+                    doc.text(total, margin + colQtyW + colDescW, y, { width: colTotalW, align: "right" });
 
-                    // Mover el cursor abajo dependiendo de lo que ocupó más espacio (descripción usualmente)
-                    const descHeight = doc.heightOfString(item.productName, { width: 120 });
-                    const rowHeight = Math.max(descHeight, 10); // Minimo 10
-                    doc.y = y + rowHeight + 2;
+                    // Calcular altura
+                    const descHeight = doc.heightOfString(item.productName, { width: colDescW });
+                    const rowHeight = Math.max(descHeight, 10);
+                    doc.y = y + rowHeight + 4; // Un poco más de espacio entre items
                 });
 
                 doc.moveDown(0.2);
@@ -201,15 +202,17 @@ export class PdfService {
                     doc.moveDown(0.2);
                     doc.font("Helvetica").fontSize(7);
 
-                    // Headers Tabla Pagos
-                    const colDateW = 50;
-                    const colRefW = 90;
-                    const colAmountW = 66;
+                    // Headers Tabla Pagos (Reajustado para evitar overlap)
+                    // Total width ~206px (226 - 20 margin)
+                    const pColDateW = 55;
+                    const pColRefW = 85;
+                    const pColAmountW = 66;
 
-                    doc.text("FECHA", margin, doc.y, { width: colDateW, continued: true });
-                    doc.text("REF/METODO", { width: colRefW, continued: true, align: 'left' });
-                    doc.text("MONTO", { width: colAmountW, align: "right" });
+                    doc.text("FECHA", margin, doc.y, { width: pColDateW, continued: true });
+                    doc.text("REF/METODO", { width: pColRefW, continued: true, align: 'left' });
+                    doc.text("MONTO", { width: pColAmountW, align: "right" });
 
+                    doc.moveDown(0.2); // Forzar nueva linea para linea divisoria
                     this.drawThinLine(doc);
                     doc.font("Helvetica").fontSize(8);
 
@@ -217,21 +220,25 @@ export class PdfService {
                         const y = doc.y;
                         const date = this.formatDate(new Date(p.date)); // DD/MM/YYYY
                         let ref = p.reference || p.method || '-';
+                        if (ref.length > 12) ref = ref.substring(0, 12); // Truncar ref
                         const amount = formatCurrency(p.amount / 100);
 
-                        doc.text(date, margin, y, { width: colDateW });
-                        doc.text(ref, margin + colDateW, y, { width: colRefW, align: 'left' });
-                        doc.text(amount, margin + colDateW + colRefW, y, { width: colAmountW, align: "right" });
+                        doc.text(date, margin, y, { width: pColDateW });
+                        doc.text(ref, margin + pColDateW, y, { width: pColRefW, align: 'left' });
+                        doc.text(amount, margin + pColDateW + pColRefW, y, { width: pColAmountW, align: "right" });
 
-                        // Avanzar linea
-                        doc.moveDown(0.2);
+                        doc.moveDown(1.2); // Espacio fijo
                     });
                 } else {
                     doc.font("Helvetica-Italic").fontSize(8).text("No hay abonos registrados", { align: "center" });
                 }
 
                 doc.moveDown(1);
-                doc.font("Helvetica").fontSize(7).text("Generado: " + new Date().toLocaleString(), { align: "center" });
+                // Footer con Fecha Managua
+                const now = new Date();
+                const genDate = this.formatDate(now);
+                const genTime = this.formatTime(now);
+                doc.font("Helvetica").fontSize(7).text(`Generado: ${genDate}, ${genTime}`, { align: "center" });
 
                 doc.end();
             } catch (error) {
