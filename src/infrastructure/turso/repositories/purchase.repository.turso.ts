@@ -7,10 +7,10 @@ export class PurchaseRepositoryTurso implements IPurchaseRepository {
         const id = `PURCH-${Date.now()}-${Math.random().toString(36).substring(7)}`;
         const now = new Date().toISOString();
 
-        // Insertar compra principal
+        // Insertar compra principal (status default: COMPLETED)
         await tursoClient.execute({
-            sql: `INSERT INTO purchases (id, branch_id, supplier_id, subtotal, tax, discount, total, type, payment_method, invoice_number, notes, created_by, created_at)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            sql: `INSERT INTO purchases (id, branch_id, supplier_id, subtotal, tax, discount, total, type, payment_method, invoice_number, notes, created_by, created_at, status)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'COMPLETED')`,
             args: [
                 id,
                 data.branchId,
@@ -49,6 +49,7 @@ export class PurchaseRepositoryTurso implements IPurchaseRepository {
         return {
             id,
             ...data,
+            status: 'COMPLETED',
             createdAt: new Date(now)
         };
     }
@@ -159,6 +160,12 @@ export class PurchaseRepositoryTurso implements IPurchaseRepository {
             args.push(data.invoiceNumber);
         }
 
+        // Add status update capability
+        if (data.status !== undefined) {
+            updates.push('status = ?');
+            args.push(data.status);
+        }
+
         if (updates.length === 0) {
             throw new Error('No hay campos para actualizar');
         }
@@ -207,6 +214,7 @@ export class PurchaseRepositoryTurso implements IPurchaseRepository {
             total: Number(purchaseRow.total),
             type: purchaseRow.type as 'CASH' | 'CREDIT',
             paymentMethod: purchaseRow.payment_method as 'CASH' | 'TRANSFER' | 'CHECK' | undefined,
+            status: (purchaseRow.status as 'COMPLETED' | 'CANCELLED') || 'COMPLETED',
             invoiceNumber: purchaseRow.invoice_number as string | undefined,
             notes: purchaseRow.notes as string | undefined,
             createdBy: purchaseRow.created_by as string,

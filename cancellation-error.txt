@@ -1,0 +1,10 @@
+{
+  "code": "SQLITE_CONSTRAINT",
+  "name": "LibsqlError"
+}
+LibsqlError: SQLITE_CONSTRAINT: SQLite error: FOREIGN KEY constraint failed
+    at mapHranaError (file:///C:/Users/joshu/insbr-api/node_modules/@libsql/client/lib-esm/hrana.js:310:16)
+    at file:///C:/Users/joshu/insbr-api/node_modules/@libsql/client/lib-esm/http.js:86:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async ProductRepositoryTurso.delete (C:\Users\joshu\insbr-api\src\infrastructure\turso\repositories\product.repository.turso.ts:123:9)
+    at async verifyPurchaseCancellation (C:\Users\joshu\insbr-api\verify-purchase-cancellation.ts:112:9)

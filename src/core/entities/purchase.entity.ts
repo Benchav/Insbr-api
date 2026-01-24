@@ -34,6 +34,7 @@ export interface Purchase {
     paymentMethod?: 'CASH' | 'TRANSFER' | 'CHECK';
 
     // Metadata
+    status: 'COMPLETED' | 'CANCELLED';
     invoiceNumber?: string;
     notes?: string;
     createdBy: string; // userId

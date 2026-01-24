@@ -201,5 +201,31 @@ export function createPurchaseController(purchaseService: PurchaseService): Rout
         }
     });
 
+    router.delete('/:id', async (req: Request, res: Response) => {
+        try {
+            if (!req.user) throw new Error('No autorizado');
+
+            // Solo ADMIN puede cancelar compras
+            if (req.user.role !== 'ADMIN') {
+                return res.status(403).json({
+                    error: 'No autorizado',
+                    message: 'Solo los administradores pueden cancelar compras'
+                });
+            }
+
+            const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+            // Llamar al servicio de cancelación
+            const cancelledPurchase = await purchaseService.cancelPurchase(id, req.user.userId);
+
+            res.json({
+                message: 'Compra cancelada exitosamente',
+                purchase: cancelledPurchase
+            });
+        } catch (error: any) {
+            res.status(400).json({ error: error.message });
+        }
+    });
+
     return router;
 }
