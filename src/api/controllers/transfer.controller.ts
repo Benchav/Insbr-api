@@ -9,7 +9,8 @@ const createTransferSchema = z.object({
         productId: z.string(),
         quantity: z.number().int().positive()
     })).min(1),
-    notes: z.string().optional()
+    notes: z.string().optional(),
+    fromBranchId: z.string().optional()
 });
 
 export function createTransferController(transferService: TransferService): Router {
@@ -58,8 +59,16 @@ export function createTransferController(transferService: TransferService): Rout
             if (!req.user) throw new Error('No autorizado');
             const body = createTransferSchema.parse(req.body);
 
+            // Determinar origen (source/from branch):
+            // - Si es ADMIN y envía fromBranchId, usamos ese.
+            // - En cualquier otro caso, el origen es la sucursal del usuario
+            let sourceBranchId = req.user.branchId;
+            if (req.user.role === 'ADMIN' && body.fromBranchId) {
+                sourceBranchId = body.fromBranchId;
+            }
+
             const transfer = await transferService.createTransfer({
-                fromBranchId: req.user.branchId,
+                fromBranchId: sourceBranchId,
                 toBranchId: body.toBranchId,
                 items: body.items.map(i => ({ ...i, productName: 'Transfer Item' })),
                 notes: body.notes,

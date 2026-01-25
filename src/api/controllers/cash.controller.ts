@@ -10,7 +10,8 @@ const registerMovementSchema = z.object({
     paymentMethod: z.enum(['CASH', 'TRANSFER', 'CHECK']),
     reference: z.string().optional(),
     description: z.string().min(3),
-    notes: z.string().optional()
+    notes: z.string().optional(),
+    branchId: z.string().optional()
 });
 
 export function createCashController(cashService: CashService): Router {
@@ -185,8 +186,16 @@ export function createCashController(cashService: CashService): Router {
 
             const body = registerMovementSchema.parse(req.body);
 
+            // Determinar branchId:
+            // - Si es ADMIN y envía branchId, usamos ese.
+            // - En cualquier otro caso (o si no envía), usamos su branch asignado.
+            let targetBranchId = req.user.branchId;
+            if (req.user.role === 'ADMIN' && body.branchId) {
+                targetBranchId = body.branchId;
+            }
+
             const movement = await cashService.registerManualMovement({
-                branchId: req.user.branchId,
+                branchId: targetBranchId,
                 type: body.type,
                 category: body.category,
                 amount: body.amount,

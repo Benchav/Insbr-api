@@ -20,7 +20,8 @@ const createPurchaseSchema = z.object({
     paymentMethod: z.enum(['CASH', 'TRANSFER', 'CHECK']).optional(),
     invoiceNumber: z.string().optional(),
     notes: z.string().optional(),
-    dueDate: z.string().datetime().optional().transform(str => str ? new Date(str) : undefined) // Transform string to Date
+    dueDate: z.string().datetime().optional().transform(str => str ? new Date(str) : undefined), // Transform string to Date
+    branchId: z.string().optional()
 });
 
 export function createPurchaseController(purchaseService: PurchaseService): Router {
@@ -84,9 +85,17 @@ export function createPurchaseController(purchaseService: PurchaseService): Rout
             if (!req.user) throw new Error('No autorizado');
             const body = createPurchaseSchema.parse(req.body);
 
+            // Determinar branchId:
+            // - Si es ADMIN y envía branchId, usamos ese.
+            // - En cualquier otro caso (o si no envía), usamos su branch asignado.
+            let targetBranchId = req.user.branchId;
+            if (req.user.role === 'ADMIN' && body.branchId) {
+                targetBranchId = body.branchId;
+            }
+
             const purchase = await purchaseService.createPurchase({
                 ...body,
-                branchId: req.user.branchId,
+                branchId: targetBranchId,
                 createdBy: req.user.userId,
                 createdAt: new Date()
             } as any);
