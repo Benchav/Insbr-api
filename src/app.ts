@@ -46,6 +46,7 @@ import { createCustomerController } from './api/controllers/customer.controller.
 import { createSupplierController } from './api/controllers/supplier.controller.js';
 import { authenticate, authorize } from './infrastructure/web/middlewares/auth.middleware.js';
 import { createCategoryController } from './api/controllers/category.controller.js';
+import { createBranchController } from './api/controllers/branch.controller.js';
 
 export function createApp(): Express {
   const app = express();
@@ -167,6 +168,9 @@ export function createApp(): Express {
 
   // Stock - Todos pueden consultar, solo ADMIN y GERENTE pueden ajustar
   app.use('/api/stock', authenticate, authorize(['ADMIN', 'GERENTE', 'CAJERO']), createStockController(stockService));
+
+  // Sucursales - Todos pueden ver
+  app.use('/api/branches', authenticate, createBranchController(branchRepository));
 
   // Swagger Documentation
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
