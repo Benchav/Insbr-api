@@ -12,7 +12,8 @@ const createSaleSchema = z.object({
         quantity: z.number().int().positive(),
         unitPrice: z.number().int().positive()
     })).min(1),
-    notes: z.string().optional()
+    notes: z.string().optional(),
+    branchId: z.string().optional()
 });
 
 export function createSaleController(saleService: SaleService): Router {
@@ -79,10 +80,18 @@ export function createSaleController(saleService: SaleService): Router {
                 return { ...i, productName: 'Producto', subtotal: lineTotal };
             });
 
+            // Determinar branchId:
+            // - Si es ADMIN y envía branchId, usamos ese.
+            // - En cualquier otro caso (o si no envía), usamos su branch asignado.
+            let targetBranchId = req.user.branchId;
+            if (req.user.role === 'ADMIN' && body.branchId) {
+                targetBranchId = body.branchId;
+            }
+
             const sale = await saleService.createSale({
                 ...body,
                 items,
-                branchId: req.user.branchId, // Forzamos sucursal del token
+                branchId: targetBranchId,
                 createdBy: req.user.userId,
                 subtotal,
                 tax: 0,
