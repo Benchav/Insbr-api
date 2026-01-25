@@ -20,6 +20,17 @@ export function createStockController(stockService: StockService): Router {
      *   get:
      *     summary: Obtener stock de mi sucursal
      *     tags: [Stock]
+     *     parameters:
+     *       - in: query
+     *         name: categoryId
+     *         schema:
+     *           type: string
+     *         description: Filtrar por ID de categoría
+     *       - in: query
+     *         name: branchId
+     *         schema:
+     *           type: string
+     *         description: (Admin) ID de sucursal
      *     security:
      *       - bearerAuth: []
      *     responses:
@@ -55,9 +66,10 @@ export function createStockController(stockService: StockService): Router {
 
             // ADMIN puede especificar branchId en query
             const queryBranchId = req.query.branchId as string | undefined;
+            const categoryId = req.query.categoryId as string | undefined;
             const effectiveBranchId = getEffectiveBranchId(req.user, queryBranchId);
 
-            const stock = await stockService.getStockByBranch(effectiveBranchId || req.user.branchId);
+            const stock = await stockService.getStockByBranch(effectiveBranchId || req.user.branchId, categoryId);
             res.json(stock);
         } catch (error: any) {
             res.status(500).json({ error: error.message });

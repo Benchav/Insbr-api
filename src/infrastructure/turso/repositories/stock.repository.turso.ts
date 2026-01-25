@@ -42,11 +42,20 @@ export class StockRepositoryTurso implements IStockRepository {
         return this.mapRowToStock(result.rows[0]);
     }
 
-    async findByBranch(branchId: string): Promise<Stock[]> {
-        const result = await tursoClient.execute({
-            sql: 'SELECT * FROM stock WHERE branch_id = ? ORDER BY product_id',
-            args: [branchId]
-        });
+    async findByBranch(branchId: string, categoryId?: string): Promise<Stock[]> {
+        let sql = 'SELECT s.* FROM stock s';
+        const args: any[] = [branchId];
+
+        if (categoryId) {
+            sql += ' JOIN products p ON s.product_id = p.id WHERE s.branch_id = ? AND p.category_id = ?';
+            args.push(categoryId);
+        } else {
+            sql += ' WHERE s.branch_id = ?';
+        }
+
+        sql += ' ORDER BY s.product_id';
+
+        const result = await tursoClient.execute({ sql, args });
 
         return result.rows.map(row => this.mapRowToStock(row));
     }

@@ -27,8 +27,8 @@ export class StockService {
     /**
      * Obtiene todo el stock de una sucursal con información del producto
      */
-    async getStockByBranch(branchId: string): Promise<StockWithProduct[]> {
-        const stocks = await this.stockRepository.findByBranch(branchId);
+    async getStockByBranch(branchId: string, categoryId?: string): Promise<StockWithProduct[]> {
+        const stocks = await this.stockRepository.findByBranch(branchId, categoryId);
         const stocksWithProduct: StockWithProduct[] = [];
 
         for (const stock of stocks) {
