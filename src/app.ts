@@ -15,9 +15,11 @@ import { CashMovementRepositoryTurso } from './infrastructure/turso/repositories
 import { TransferRepositoryTurso } from './infrastructure/turso/repositories/transfer.repository.turso.js';
 import { UserRepositoryTurso } from './infrastructure/turso/repositories/user.repository.turso.js';
 import { BranchRepositoryTurso } from './infrastructure/turso/repositories/branch.repository.turso.js';
+import { CategoryRepositoryTurso } from './infrastructure/turso/repositories/category.repository.turso.js';
 
 // Services
 import { ProductService } from './application/services/product.service.js';
+import { CategoryService } from './application/services/category.service.js';
 import { SaleService } from './application/services/sale.service.js';
 import { PurchaseService } from './application/services/purchase.service.js';
 import { CreditService } from './application/services/credit.service.js';
@@ -43,6 +45,7 @@ import { createStockController } from './api/controllers/stock.controller.js';
 import { createCustomerController } from './api/controllers/customer.controller.js';
 import { createSupplierController } from './api/controllers/supplier.controller.js';
 import { authenticate, authorize } from './infrastructure/web/middlewares/auth.middleware.js';
+import { createCategoryController } from './api/controllers/category.controller.js';
 
 export function createApp(): Express {
   const app = express();
@@ -61,6 +64,7 @@ export function createApp(): Express {
   const cashMovementRepository = new CashMovementRepositoryTurso();
   const transferRepository = new TransferRepositoryTurso();
   const branchRepository = new BranchRepositoryTurso();
+  const categoryRepository = new CategoryRepositoryTurso();
   const userRepository = new UserRepositoryTurso();
 
   // 2. Inicializar Servicios
@@ -103,6 +107,7 @@ export function createApp(): Express {
 
   const customerService = new CustomerService(customerRepository);
   const supplierService = new SupplierService(supplierRepository);
+  const categoryService = new CategoryService(categoryRepository);
 
   const authService = new AuthService(userRepository);
   const pdfService = new PdfService();
@@ -119,6 +124,9 @@ export function createApp(): Express {
 
   // Productos - Todos pueden ver, solo ADMIN y GERENTE pueden modificar
   app.use('/api/products', authenticate, authorize(['ADMIN', 'GERENTE', 'CAJERO']), createProductController(productService));
+
+  // Categorías
+  app.use('/api/categories', authenticate, authorize(['ADMIN', 'GERENTE', 'CAJERO']), createCategoryController(categoryService));
 
   // Clientes - Todos pueden ver, solo ADMIN y GERENTE pueden modificar
   app.use('/api/customers', authenticate, authorize(['ADMIN', 'GERENTE', 'CAJERO']), createCustomerController(customerService));

@@ -7,11 +7,17 @@ export class ProductRepositoryTurso implements IProductRepository {
         const id = `PROD-${Date.now()}-${Math.random().toString(36).substring(7)}`;
         const now = new Date().toISOString();
 
+        // Si viene categoryId, usamos ese. Si viene solo category (texto legacy), buscamos si existe o lo dejamos null?
+        // El script de migración ya llenó todo.
+        // Asumimos que data.categoryId debe venir si se seleccionó una categoría.
+        // Mantenemos data.category como texto de respaldo o nombre.
+
         await tursoClient.execute({
-            sql: `INSERT INTO products (id, name, description, sku, category, cost_price, retail_price, wholesale_price, unit, is_active, created_at, updated_at)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+            sql: `INSERT INTO products (id, name, description, sku, category, category_id, cost_price, retail_price, wholesale_price, unit, is_active, created_at, updated_at)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
             args: [
                 id, data.name, data.description, data.sku, data.category,
+                data.categoryId || null, // Nuevo campo
                 data.costPrice, data.retailPrice, data.wholesalePrice, data.unit,
                 now, now
             ]
@@ -28,7 +34,12 @@ export class ProductRepositoryTurso implements IProductRepository {
 
     async findById(id: string): Promise<Product | null> {
         const result = await tursoClient.execute({
-            sql: 'SELECT * FROM products WHERE id = ?',
+            sql: `
+                SELECT p.*, c.name as category_name
+                FROM products p
+                LEFT JOIN categories c ON p.category_id = c.id
+                WHERE p.id = ?
+            `,
             args: [id]
         });
 
@@ -39,7 +50,12 @@ export class ProductRepositoryTurso implements IProductRepository {
 
     async findBySku(sku: string): Promise<Product | null> {
         const result = await tursoClient.execute({
-            sql: 'SELECT * FROM products WHERE sku = ?',
+            sql: `
+                SELECT p.*, c.name as category_name
+                FROM products p
+                LEFT JOIN categories c ON p.category_id = c.id
+                WHERE p.sku = ?
+            `,
             args: [sku]
         });
 
@@ -49,20 +65,32 @@ export class ProductRepositoryTurso implements IProductRepository {
     }
 
     async findAll(filters?: { category?: string; isActive?: boolean }): Promise<Product[]> {
-        let sql = 'SELECT * FROM products WHERE 1=1';
+        let sql = `
+            SELECT p.*, c.name as category_name
+            FROM products p
+            LEFT JOIN categories c ON p.category_id = c.id
+            WHERE 1=1
+        `;
         const args: any[] = [];
 
         if (filters?.category) {
-            sql += ' AND category = ?';
-            args.push(filters.category);
+            // Filtramos por ID o por Nombre?
+            // Si el filtro es un ID (comienza con CAT-), filtramos por ID.
+            if (filters.category.startsWith('CAT-')) {
+                sql += ' AND p.category_id = ?';
+                args.push(filters.category);
+            } else {
+                sql += ' AND (p.category = ? OR c.name = ?)';
+                args.push(filters.category, filters.category);
+            }
         }
 
         if (filters?.isActive !== undefined) {
-            sql += ' AND is_active = ?';
+            sql += ' AND p.is_active = ?';
             args.push(filters.isActive ? 1 : 0);
         }
 
-        sql += ' ORDER BY name';
+        sql += ' ORDER BY p.name';
 
         const result = await tursoClient.execute({ sql, args });
         return result.rows.map(row => this.mapRowToProduct(row));
@@ -83,6 +111,10 @@ export class ProductRepositoryTurso implements IProductRepository {
         if (data.category !== undefined) {
             updates.push('category = ?');
             args.push(data.category);
+        }
+        if (data.categoryId !== undefined) {
+            updates.push('category_id = ?');
+            args.push(data.categoryId || null);
         }
         if (data.costPrice !== undefined) {
             updates.push('cost_price = ?');
@@ -132,7 +164,9 @@ export class ProductRepositoryTurso implements IProductRepository {
             name: row.name as string,
             description: row.description as string,
             sku: row.sku as string,
-            category: row.category as string,
+            // Preferimos el nombre de la categoría JOIN, sino el campo legacy
+            category: (row.category_name as string) || (row.category as string),
+            categoryId: row.category_id as string | undefined,
             costPrice: Number(row.cost_price),
             retailPrice: Number(row.retail_price),
             wholesalePrice: Number(row.wholesale_price),

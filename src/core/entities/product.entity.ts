@@ -7,15 +7,16 @@ export interface Product {
   description: string;
   sku: string;
   category: string;
-  
+  categoryId?: string; // ID de la categoría (Relacional)
+
   // Precios en centavos para evitar errores de punto flotante
   costPrice: number;      // Precio de costo
   retailPrice: number;    // Precio al detalle
   wholesalePrice: number; // Precio al por mayor
-  
+
   // Unidad de medida
   unit: string; // ej: "kg", "unidad", "litro"
-  
+
   // Metadata
   isActive: boolean;
   createdAt: Date;
