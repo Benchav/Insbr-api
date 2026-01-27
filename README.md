@@ -126,6 +126,71 @@ Al iniciar el servidor, se cargan automáticamente:
 - Transferencias (`/api/transfers`)
 - Stock (`/api/stock`)
 
+##  Transferencias entre Sucursales
+
+El sistema soporta un flujo seguro y auditable para transferencias de productos entre sucursales. Cada acción está protegida por roles y validaciones de stock.
+
+### Flujo de Transferencia
+1. **Creación:** Un usuario (o admin) solicita una transferencia de productos entre sucursales.
+2. **Aceptación:** (Solo para tipo REQUEST) La sucursal origen acepta la solicitud.
+3. **Despacho:** La sucursal origen despacha los productos (stock se descuenta).
+4. **Recepción:** La sucursal destino recibe los productos (stock se suma).
+5. **Cancelación:** Origen o admin pueden cancelar transferencias no completadas.
+
+### Endpoints principales
+
+| Método | Endpoint                        | Descripción                                 |
+|--------|----------------------------------|---------------------------------------------|
+| POST   | /api/transfers                  | Crear transferencia                        |
+| PATCH  | /api/transfers/:id/accept       | Aceptar solicitud (tipo REQUEST)           |
+| PATCH  | /api/transfers/:id/ship         | Despachar transferencia                    |
+| PATCH  | /api/transfers/:id/receive      | Recibir transferencia                      |
+| DELETE | /api/transfers/:id              | Cancelar transferencia                     |
+| GET    | /api/transfers/:id              | Ver detalle de transferencia               |
+| GET    | /api/transfers                  | Listar transferencias                      |
+
+### Ejemplo de creación
+```json
+POST /api/transfers
+{
+  "toBranchId": "BRANCH-DESTINO-ID",
+  "items": [ { "productId": "PROD-XXX", "quantity": 1 } ],
+  "notes": "opcional"
+}
+```
+**Respuesta:**
+```json
+{
+  "id": "TRANS-...",
+  "fromBranchId": "...",
+  "toBranchId": "...",
+  "items": [ { "productId": "...", "productName": "...", "quantity": 1 } ],
+  "status": "PENDING" | "REQUESTED",
+  "type": "SEND" | "REQUEST",
+  ...
+}
+```
+
+### Estados posibles
+- `REQUESTED`: Solicitud pendiente de aceptación (tipo REQUEST)
+- `PENDING`: Lista para despachar
+- `IN_TRANSIT`: Despachada, en camino
+- `COMPLETED`: Recibida y finalizada
+- `CANCELLED`: Cancelada
+
+### Consideraciones para Frontend
+- **Autenticación:** Todos los endpoints requieren JWT (Bearer).
+- **Roles:** Solo usuarios con permisos pueden crear, aceptar, despachar, recibir o cancelar transferencias según su branch y rol.
+- **Acciones:** El frontend debe mostrar el estado (`status`) y permitir acciones según el mismo.
+- **Errores:** Las respuestas de error tienen el formato `{ "error": "mensaje" }` y status HTTP adecuado (400, 403, 404).
+- **Listados:** Puedes filtrar transferencias por estado, dirección y sucursal.
+
+### Ejemplo de flujo en frontend
+1. Listar transferencias (`GET /api/transfers?status=PENDING`)
+2. Mostrar detalle (`GET /api/transfers/:id`)
+3. Permitir aceptar/despachar/recibir según estado y rol
+4. Actualizar UI tras cada acción exitosa
+
 ##  Testing
 
 ```bash
