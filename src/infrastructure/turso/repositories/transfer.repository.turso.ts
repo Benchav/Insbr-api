@@ -1,6 +1,6 @@
 import { tursoClient } from '../client.js';
 import { ITransferRepository } from '../../../core/interfaces/transfer.repository.js';
-import { Transfer, CreateTransferDto, TransferItem, TransferStatus } from '../../../core/entities/transfer.entity.js';
+import { Transfer, CreateTransferDto, TransferItem, TransferStatus, TransferType } from '../../../core/entities/transfer.entity.js';
 
 export class TransferRepositoryTurso implements ITransferRepository {
     async create(data: CreateTransferDto & { type: TransferType; status: TransferStatus }): Promise<Transfer> {

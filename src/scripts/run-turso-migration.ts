@@ -28,7 +28,7 @@ async function runMigration() {
       console.log('Ejecutando:', statement.slice(0, 80) + (statement.length > 80 ? '...' : ''));
       await client.execute(statement);
       console.log('✅ OK');
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ Error:', err.message);
       process.exit(1);
     }

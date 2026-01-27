@@ -1,5 +1,5 @@
 import { ITransferRepository } from '../../../core/interfaces/transfer.repository.js';
-import { Transfer, CreateTransferDto, TransferStatus } from '../../../core/entities/transfer.entity.js';
+import { Transfer, CreateTransferDto, TransferStatus, TransferType } from '../../../core/entities/transfer.entity.js';
 import { storage } from '../storage.js';
 import { randomUUID } from 'crypto';
 
@@ -8,7 +8,8 @@ export class TransferRepositoryImpl implements ITransferRepository {
         const transfer: Transfer = {
             id: randomUUID(),
             ...data,
-            status: 'PENDING',
+            type: (data as any).type || 'SEND',
+            status: (data as any).status || 'PENDING',
             createdAt: new Date()
         };
 

@@ -2,7 +2,7 @@ import { ITransferRepository } from '../../core/interfaces/transfer.repository.j
 import { IStockRepository } from '../../core/interfaces/stock.repository.js';
 import { IBranchRepository } from '../../core/interfaces/branch.repository.js';
 import { IProductRepository } from '../../core/interfaces/product.repository.js';
-import { CreateTransferDto, Transfer } from '../../core/entities/transfer.entity.js';
+import { CreateTransferDto, Transfer, TransferStatus } from '../../core/entities/transfer.entity.js';
 import { getNicaraguaNow } from '../../core/utils/date.utils.js';
 
 export class TransferService {
@@ -33,7 +33,7 @@ export class TransferService {
         if (data.userId === data.toBranchId) {
             type = 'REQUEST';
         }
-        let status: TransferStatus = type === 'SEND' ? 'PENDING' : 'REQUESTED';
+        const status = (type === 'SEND' ? 'PENDING' : 'REQUESTED') as TransferStatus;
         // Si es SEND, validar stock pero NO descontar
         if (type === 'SEND') {
             for (const item of data.items) {
@@ -48,7 +48,7 @@ export class TransferService {
             ...data,
             type,
             status,
-        });
+        } as any);
     }
 
 
