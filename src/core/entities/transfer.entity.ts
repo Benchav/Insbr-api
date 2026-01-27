@@ -1,7 +1,8 @@
 /**
  * Transferencia de stock entre sucursales
  */
-export type TransferStatus = 'PENDING' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELLED';
+export type TransferStatus = 'REQUESTED' | 'PENDING' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELLED';
+export type TransferType = 'SEND' | 'REQUEST';
 
 export interface TransferItem {
     productId: string;
@@ -19,8 +20,10 @@ export interface Transfer {
     // Items transferidos
     items: TransferItem[];
 
-    // Estado
+
+    // Estado y tipo
     status: TransferStatus;
+    type: TransferType;
 
     // Metadata
     notes?: string;
@@ -28,9 +31,12 @@ export interface Transfer {
     approvedBy?: string; // userId que aprueba
     completedBy?: string; // userId que completa
 
+    shippedBy?: string; // userId que despacha
+    shippedAt?: Date;
+
     createdAt: Date;
     approvedAt?: Date;
     completedAt?: Date;
 }
 
-export type CreateTransferDto = Omit<Transfer, 'id' | 'status' | 'approvedBy' | 'completedBy' | 'createdAt' | 'approvedAt' | 'completedAt'>;
+export type CreateTransferDto = Omit<Transfer, 'id' | 'status' | 'approvedBy' | 'completedBy' | 'createdAt' | 'approvedAt' | 'completedAt' | 'shippedBy' | 'shippedAt' | 'type'> & { type?: TransferType };

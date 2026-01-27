@@ -23,16 +23,18 @@ export function createCashController(cashService: CashService): Router {
      * /api/cash/balance:
      *   get:
      *     summary: Obtener balance de caja del día
-     *     tags: [Cash]
+     *     tags:
+     *       - Cash
      *     security:
      *       - bearerAuth: []
-     *     parameters:
-     *       - in: query
-     *         name: date
-     *         schema:
-     *           type: string
-     *           format: date
-     *         description: Fecha del balance (default: hoy)
+        *     parameters:
+        *       - in: query
+        *         name: date
+        *         required: false
+        *         # descripción eliminada para evitar error YAML
+        *         schema:
+        *           type: string
+        *           format: date
      *     responses:
      *       200:
      *         description: Balance de caja
@@ -83,7 +85,8 @@ export function createCashController(cashService: CashService): Router {
      * /api/cash/movements:
      *   get:
      *     summary: Listar movimientos de caja
-     *     tags: [Cash]
+     *     tags:
+     *       - Cash
      *     security:
      *       - bearerAuth: []
      *     parameters:
@@ -129,7 +132,8 @@ export function createCashController(cashService: CashService): Router {
      * /api/cash/movements:
      *   post:
      *     summary: Registrar movimiento de caja manual
-     *     tags: [Cash]
+     *     tags:
+     *       - Cash
      *     security:
      *       - bearerAuth: []
      *     requestBody:
@@ -221,7 +225,8 @@ export function createCashController(cashService: CashService): Router {
      * /api/cash/daily-revenue:
      *   get:
      *     summary: Obtener ingreso total del día
-     *     tags: [Cash]
+     *     tags:
+     *       - Cash
      *     security:
      *       - bearerAuth: []
      *     parameters:
@@ -269,16 +274,18 @@ export function createCashController(cashService: CashService): Router {
      *   get:
      *     summary: Obtener ingresos consolidados de todas las sucursales (Solo ADMIN)
      *     description: Retorna estadísticas de caja de todas las sucursales activas con totales consolidados
-     *     tags: [Cash]
+     *     tags:
+     *       - Cash
      *     security:
      *       - bearerAuth: []
-     *     parameters:
-     *       - in: query
-     *         name: date
-     *         schema:
-     *           type: string
-     *           format: date
-     *         description: Fecha del reporte (default: hoy)
+        *     parameters:
+        *       - in: query
+        *         name: date
+        *         required: false
+        *         # descripción eliminada para evitar error YAML
+        *         schema:
+        *           type: string
+        *           format: date
      *     responses:
      *       200:
      *         description: Estadísticas consolidadas

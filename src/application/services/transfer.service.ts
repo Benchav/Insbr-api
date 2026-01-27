@@ -13,98 +13,108 @@ export class TransferService {
         private productRepository: IProductRepository
     ) { }
 
-    async createTransfer(data: CreateTransferDto): Promise<Transfer> {
-        // 1. Validar que las sucursales existan y sean diferentes
+
+    /**
+     * Crea una transferencia tipo SEND o REQUEST.
+     * - SEND: Sucursal origen envía stock (estado inicial: PENDING, valida stock pero no descuenta)
+     * - REQUEST: Sucursal destino solicita stock (estado inicial: REQUESTED, no afecta stock)
+     */
+    async createTransfer(data: CreateTransferDto & { userId: string }): Promise<Transfer> {
         if (data.fromBranchId === data.toBranchId) {
             throw new Error('La sucursal de origen y destino deben ser diferentes');
         }
-
         const fromBranch = await this.branchRepository.findById(data.fromBranchId);
         const toBranch = await this.branchRepository.findById(data.toBranchId);
-
         if (!fromBranch || !toBranch) {
             throw new Error('Sucursal no encontrada');
         }
-
-        // 2. Validar stock disponible en sucursal de origen
-        for (const item of data.items) {
-            const stock = await this.stockRepository.findByProductAndBranch(
-                item.productId,
-                data.fromBranchId
-            );
-
-            if (!stock || stock.quantity < item.quantity) {
-                const product = await this.productRepository.findById(item.productId);
-                throw new Error(
-                    `Stock insuficiente en ${fromBranch.name} para ${product?.name || item.productId}. ` +
-                    `Disponible: ${stock?.quantity || 0}, Requerido: ${item.quantity}`
-                );
+        // Determinar tipo: si el usuario es de la sucursal origen, es SEND; si es de destino, es REQUEST
+        let type: 'SEND' | 'REQUEST' = 'SEND';
+        if (data.userId === data.toBranchId) {
+            type = 'REQUEST';
+        }
+        let status: TransferStatus = type === 'SEND' ? 'PENDING' : 'REQUESTED';
+        // Si es SEND, validar stock pero NO descontar
+        if (type === 'SEND') {
+            for (const item of data.items) {
+                const stock = await this.stockRepository.findByProductAndBranch(item.productId, data.fromBranchId);
+                if (!stock || stock.quantity < item.quantity) {
+                    throw new Error(`Stock insuficiente en ${fromBranch.name} para producto ${item.productId}`);
+                }
             }
         }
-
-        // 3. Crear la transferencia
-        const transfer = await this.transferRepository.create(data);
-
-        return transfer;
+        // Crear transferencia
+        return await this.transferRepository.create({
+            ...data,
+            type,
+            status,
+        });
     }
 
-    async approveTransfer(transferId: string, userId: string): Promise<Transfer> {
+
+    /**
+     * Paso 2: Aceptar una solicitud de transferencia (REQUEST)
+     * Solo válido para tipo REQUEST en estado REQUESTED
+     * Valida stock en origen, cambia a PENDING, registra approvedBy/approvedAt
+     */
+    async acceptRequest(transferId: string, userId: string): Promise<Transfer> {
         const transfer = await this.transferRepository.findById(transferId);
-        if (!transfer) {
-            throw new Error('Transferencia no encontrada');
+        if (!transfer) throw new Error('Transferencia no encontrada');
+        if (transfer.type !== 'REQUEST' || transfer.status !== 'REQUESTED') {
+            throw new Error('Solo se pueden aceptar solicitudes tipo REQUEST en estado REQUESTED');
         }
-
-        if (transfer.status !== 'PENDING') {
-            throw new Error('Solo se pueden aprobar transferencias pendientes');
+        // Validar stock en origen
+        for (const item of transfer.items) {
+            const stock = await this.stockRepository.findByProductAndBranch(item.productId, transfer.fromBranchId);
+            if (!stock || stock.quantity < item.quantity) {
+                throw new Error(`Stock insuficiente en sucursal origen para producto ${item.productId}`);
+            }
         }
-
-        // Actualizar estado a EN_TRANSITO
         return this.transferRepository.update(transferId, {
-            status: 'IN_TRANSIT',
+            status: 'PENDING',
             approvedBy: userId,
             approvedAt: getNicaraguaNow()
         });
     }
 
-    async completeTransfer(transferId: string, userId: string): Promise<Transfer> {
+
+    /**
+     * Paso 3: Despachar transferencia (SHIP)
+     * Cambia a IN_TRANSIT y descuenta stock de origen. Registra shippedBy/shippedAt
+     */
+    async shipTransfer(transferId: string, userId: string): Promise<Transfer> {
         const transfer = await this.transferRepository.findById(transferId);
-        if (!transfer) {
-            throw new Error('Transferencia no encontrada');
-        }
-
-        if (transfer.status !== 'IN_TRANSIT') {
-            throw new Error('Solo se pueden completar transferencias en tránsito');
-        }
-
-        // 1. Descontar stock de sucursal origen
+        if (!transfer) throw new Error('Transferencia no encontrada');
+        if (transfer.status !== 'PENDING') throw new Error('Solo se pueden despachar transferencias en estado PENDING');
+        // Descontar stock de origen (transaccional)
         for (const item of transfer.items) {
-            const fromStock = await this.stockRepository.findByProductAndBranch(
-                item.productId,
-                transfer.fromBranchId
-            );
-
-            if (fromStock) {
-                await this.stockRepository.updateQuantity(
-                    fromStock.id,
-                    fromStock.quantity - item.quantity
-                );
+            const fromStock = await this.stockRepository.findByProductAndBranch(item.productId, transfer.fromBranchId);
+            if (!fromStock || fromStock.quantity < item.quantity) {
+                throw new Error(`Stock insuficiente en sucursal origen para producto ${item.productId}`);
             }
+            await this.stockRepository.updateQuantity(fromStock.id, fromStock.quantity - item.quantity);
         }
+        return this.transferRepository.update(transferId, {
+            status: 'IN_TRANSIT',
+            shippedBy: userId,
+            shippedAt: getNicaraguaNow()
+        });
+    }
 
-        // 2. Incrementar stock en sucursal destino
+    /**
+     * Paso 4: Recibir transferencia (RECEIVE)
+     * Cambia a COMPLETED y suma stock en destino. Registra completedBy/completedAt
+     */
+    async receiveTransfer(transferId: string, userId: string): Promise<Transfer> {
+        const transfer = await this.transferRepository.findById(transferId);
+        if (!transfer) throw new Error('Transferencia no encontrada');
+        if (transfer.status !== 'IN_TRANSIT') throw new Error('Solo se pueden recibir transferencias en tránsito');
+        // Sumar stock en destino (transaccional)
         for (const item of transfer.items) {
-            const toStock = await this.stockRepository.findByProductAndBranch(
-                item.productId,
-                transfer.toBranchId
-            );
-
+            const toStock = await this.stockRepository.findByProductAndBranch(item.productId, transfer.toBranchId);
             if (toStock) {
-                await this.stockRepository.updateQuantity(
-                    toStock.id,
-                    toStock.quantity + item.quantity
-                );
+                await this.stockRepository.updateQuantity(toStock.id, toStock.quantity + item.quantity);
             } else {
-                // Crear nuevo registro de stock
                 await this.stockRepository.create({
                     productId: item.productId,
                     branchId: transfer.toBranchId,
@@ -114,8 +124,6 @@ export class TransferService {
                 });
             }
         }
-
-        // 3. Actualizar estado de la transferencia
         return this.transferRepository.update(transferId, {
             status: 'COMPLETED',
             completedBy: userId,
@@ -123,32 +131,26 @@ export class TransferService {
         });
     }
 
-    async cancelTransfer(transferId: string): Promise<Transfer> {
+    async cancelTransfer(transferId: string, userId: string): Promise<Transfer> {
         const transfer = await this.transferRepository.findById(transferId);
-        if (!transfer) {
-            throw new Error('Transferencia no encontrada');
-        }
-
-        if (transfer.status === 'COMPLETED') {
-            throw new Error('No se pueden cancelar transferencias completadas');
-        }
-
+        if (!transfer) throw new Error('Transferencia no encontrada');
+        if (transfer.status === 'COMPLETED') throw new Error('No se pueden cancelar transferencias completadas');
+        // Opcional: podrías registrar quién canceló y cuándo
         return this.transferRepository.update(transferId, {
             status: 'CANCELLED'
         });
     }
 
+
     async getTransfer(id: string): Promise<Transfer> {
         const transfer = await this.transferRepository.findById(id);
-        if (!transfer) {
-            throw new Error('Transferencia no encontrada');
-        }
+        if (!transfer) throw new Error('Transferencia no encontrada');
         return transfer;
     }
 
     async listTransfersByBranch(
         branchId: string,
-        filters?: { status?: 'PENDING' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELLED'; direction?: 'FROM' | 'TO' }
+        filters?: { status?: TransferStatus; direction?: 'FROM' | 'TO' }
     ): Promise<Transfer[]> {
         return this.transferRepository.findByBranch(branchId, filters);
     }

@@ -7,112 +7,170 @@ const options: swaggerJsdoc.Options = {
             title: 'ERP Insumos API',
             version: '1.0.0',
             description: 'API profesional para distribución de insumos - Sucursales Diriamba y Jinotepe',
-            contact: {
-                name: 'Joshua Chávez',
-                email: 'support@insbr-api.com'
-            }
-        },
-        servers: [
-            {
-                url: 'http://localhost:3000',
-                description: 'Servidor de desarrollo'
-            }
-        ],
-        components: {
-            securitySchemes: {
-                bearerAuth: {
-                    type: 'http',
-                    scheme: 'bearer',
-                    bearerFormat: 'JWT',
-                    description: 'Token JWT para autenticación'
-                }
-            },
-            schemas: {
-                Error: {
-                    type: 'object',
-                    properties: {
-                        error: {
-                            type: 'string',
-                            description: 'Mensaje de error'
+            components: {
+                securitySchemes: {
+                    bearerAuth: {
+                        type: 'http',
+                        scheme: 'bearer',
+                        bearerFormat: 'JWT',
+                        description: 'Token JWT para autenticación'
+                    }
+                },
+                schemas: {
+                    Error: {
+                        type: 'object',
+                        properties: {
+                            error: {
+                                type: 'string',
+                                description: 'Mensaje de error'
+                            }
+                        }
+                    },
+                    Transfer: {
+                        type: 'object',
+                        properties: {
+                            id: { type: 'string' },
+                            fromBranchId: { type: 'string' },
+                            toBranchId: { type: 'string' },
+                            items: {
+                                type: 'array',
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        productId: { type: 'string' },
+                                        productName: { type: 'string' },
+                                        quantity: { type: 'integer' }
+                                    }
+                                }
+                            },
+                            status: { type: 'string', enum: ['REQUESTED', 'PENDING', 'IN_TRANSIT', 'COMPLETED', 'CANCELLED'] },
+                            type: { type: 'string', enum: ['SEND', 'REQUEST'] },
+                            notes: { type: 'string' },
+                            createdBy: { type: 'string' },
+                            approvedBy: { type: 'string' },
+                            completedBy: { type: 'string' },
+                            shippedBy: { type: 'string' },
+                            shippedAt: { type: 'string', format: 'date-time' },
+                            createdAt: { type: 'string', format: 'date-time' },
+                            approvedAt: { type: 'string', format: 'date-time' },
+                            completedAt: { type: 'string', format: 'date-time' }
                         }
                     }
                 },
-                Product: {
-                    type: 'object',
-                    properties: {
-                        id: { type: 'string', format: 'uuid' },
-                        name: { type: 'string' },
-                        description: { type: 'string' },
-                        sku: { type: 'string' },
-                        category: { type: 'string' },
-                        costPrice: { type: 'integer', description: 'Precio de costo en centavos' },
-                        retailPrice: { type: 'integer', description: 'Precio al detalle en centavos' },
-                        wholesalePrice: { type: 'integer', description: 'Precio al por mayor en centavos' },
-                        unit: { type: 'string' },
-                        isActive: { type: 'boolean' },
-                        createdAt: { type: 'string', format: 'date-time' },
-                        updatedAt: { type: 'string', format: 'date-time' }
-                    }
-                },
-                Branch: {
-                    type: 'object',
-                    properties: {
-                        id: { type: 'string', format: 'uuid' },
-                        name: { type: 'string' },
-                        code: { type: 'string' },
-                        address: { type: 'string' },
-                        phone: { type: 'string' },
-                        isActive: { type: 'boolean' },
-                        createdAt: { type: 'string', format: 'date-time' },
-                        updatedAt: { type: 'string', format: 'date-time' }
-                    }
-                },
-                Stock: {
-                    type: 'object',
-                    properties: {
-                        id: { type: 'string', format: 'uuid' },
-                        productId: { type: 'string', format: 'uuid' },
-                        branchId: { type: 'string', format: 'uuid' },
-                        quantity: { type: 'integer' },
-                        minStock: { type: 'integer' },
-                        maxStock: { type: 'integer' },
-                        updatedAt: { type: 'string', format: 'date-time' }
-                    }
-                },
-                CreditAccount: {
-                    type: 'object',
-                    properties: {
-                        id: { type: 'string', format: 'uuid' },
-                        type: { type: 'string', enum: ['CPP', 'CXC'] },
-                        branchId: { type: 'string', format: 'uuid' },
-                        supplierId: { type: 'string', format: 'uuid', nullable: true },
-                        customerId: { type: 'string', format: 'uuid', nullable: true },
-                        totalAmount: { type: 'integer', description: 'Monto total en centavos' },
-                        paidAmount: { type: 'integer', description: 'Monto pagado en centavos' },
-                        balanceAmount: { type: 'integer', description: 'Saldo pendiente en centavos' },
-                        status: { type: 'string', enum: ['PENDIENTE', 'PAGADO_PARCIAL', 'PAGADO'] },
-                        dueDate: { type: 'string', format: 'date-time' },
-                        createdAt: { type: 'string', format: 'date-time' },
-                        updatedAt: { type: 'string', format: 'date-time' }
+                paths: {
+                    '/api/transfers': {
+                        post: {
+                            summary: 'Crear transferencia (SEND o REQUEST)',
+                            tags: [ 'Transfers' ],
+                            security: [ { bearerAuth: [] } ],
+                            requestBody: {
+                                required: true,
+                                content: {
+                                    'application/json': {
+                                        schema: {
+                                            type: 'object',
+                                            required: [ 'toBranchId', 'items' ],
+                                            properties: {
+                                                toBranchId: { type: 'string' },
+                                                items: {
+                                                    type: 'array',
+                                                    items: {
+                                                        type: 'object',
+                                                        required: [ 'productId', 'quantity' ],
+                                                        properties: {
+                                                            productId: { type: 'string' },
+                                                            quantity: { type: 'integer' }
+                                                        }
+                                                    }
+                                                },
+                                                notes: { type: 'string' },
+                                                fromBranchId: { type: 'string' }
+                                            },
+                                            example: {
+                                                toBranchId: 'BRANCH-002',
+                                                items: [ { productId: 'PROD-001', quantity: 5 } ],
+                                                notes: 'Reposición urgente'
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            responses: {
+                                201: {
+                                    description: 'Transferencia creada',
+                                    content: {
+                                        'application/json': {
+                                            schema: { $ref: '#/components/schemas/Transfer' }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    '/api/transfers/{id}/accept': {
+                        patch: {
+                            summary: 'Aceptar solicitud de transferencia (REQUEST)',
+                            tags: [ 'Transfers' ],
+                            security: [ { bearerAuth: [] } ],
+                            parameters: [
+                                { in: 'path', name: 'id', required: true, schema: { type: 'string' } }
+                            ],
+                            responses: {
+                                200: {
+                                    description: 'Transferencia aceptada',
+                                    content: {
+                                        'application/json': {
+                                            schema: { $ref: '#/components/schemas/Transfer' }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    '/api/transfers/{id}/ship': {
+                        patch: {
+                            summary: 'Despachar transferencia (descontar stock de origen)',
+                            tags: [ 'Transfers' ],
+                            security: [ { bearerAuth: [] } ],
+                            parameters: [
+                                { in: 'path', name: 'id', required: true, schema: { type: 'string' } }
+                            ],
+                            responses: {
+                                200: {
+                                    description: 'Transferencia despachada',
+                                    content: {
+                                        'application/json': {
+                                            schema: { $ref: '#/components/schemas/Transfer' }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    '/api/transfers/{id}/receive': {
+                        patch: {
+                            summary: 'Recibir transferencia (sumar stock en destino)',
+                            tags: [ 'Transfers' ],
+                            security: [ { bearerAuth: [] } ],
+                            parameters: [
+                                { in: 'path', name: 'id', required: true, schema: { type: 'string' } }
+                            ],
+                            responses: {
+                                200: {
+                                    description: 'Transferencia recibida',
+                                    content: {
+                                        'application/json': {
+                                            schema: { $ref: '#/components/schemas/Transfer' }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
-            }
+            },
         },
-        security: [
-            {
-                bearerAuth: []
-            }
-        ],
         tags: [
-            { name: 'Auth', description: 'Autenticación y gestión de usuarios' },
-            { name: 'Products', description: 'Gestión de productos (catálogo compartido)' },
-            { name: 'Customers', description: 'Gestión de clientes' },
-            { name: 'Suppliers', description: 'Gestión de proveedores' },
-            { name: 'Branches', description: 'Gestión de sucursales' },
-            { name: 'Stock', description: 'Gestión de inventario por sucursal' },
-            { name: 'Sales', description: 'Gestión de ventas' },
-            { name: 'Purchases', description: 'Gestión de compras' },
-            { name: 'Credits', description: 'Gestión de cuentas por cobrar y pagar' },
             { name: 'Transfers', description: 'Transferencias entre sucursales' },
             { name: 'Cash', description: 'Movimientos de caja' },
             { name: 'Reports', description: 'Reportes PDF y Excel' }

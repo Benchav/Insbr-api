@@ -58,25 +58,20 @@ export function createTransferController(transferService: TransferService): Rout
         try {
             if (!req.user) throw new Error('No autorizado');
             const body = createTransferSchema.parse(req.body);
-
-            // Determinar origen (source/from branch):
-            // - Si es ADMIN y envía fromBranchId, usamos ese.
-            // - En cualquier otro caso, el origen es la sucursal del usuario
+            // Determinar origen: ADMIN puede especificar, otros usan su branch
             let sourceBranchId = req.user.branchId;
             if (req.user.role === 'ADMIN' && body.fromBranchId) {
                 sourceBranchId = body.fromBranchId;
             }
-
+            // El usuario que crea la transferencia
             const transfer = await transferService.createTransfer({
                 fromBranchId: sourceBranchId,
                 toBranchId: body.toBranchId,
                 items: body.items.map(i => ({ ...i, productName: 'Transfer Item' })),
                 notes: body.notes,
                 createdBy: req.user.userId,
-                createdAt: new Date(),
-                status: 'PENDING'
-            } as any);
-
+                userId: req.user.branchId // Para determinar tipo
+            });
             res.status(201).json(transfer);
         } catch (error: any) {
             if (error instanceof z.ZodError) {
@@ -107,12 +102,19 @@ export function createTransferController(transferService: TransferService): Rout
      *       400:
      *         description: Error
      */
-    router.patch('/:id/approve', async (req: Request, res: Response) => {
+
+    // Paso 2: Aceptar solicitud (solo origen, tipo REQUEST, estado REQUESTED)
+    router.patch('/:id/accept', async (req: Request, res: Response) => {
         try {
             if (!req.user) throw new Error('No autorizado');
             const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-            const transfer = await transferService.approveTransfer(id, req.user.userId);
-            res.json(transfer);
+            const transfer = await transferService.getTransfer(id);
+            // Solo la sucursal de origen puede aceptar
+            if (transfer.fromBranchId !== req.user.branchId) {
+                return res.status(403).json({ error: 'Solo la sucursal de origen puede aceptar la solicitud' });
+            }
+            const result = await transferService.acceptRequest(id, req.user.userId);
+            res.json(result);
         } catch (error: any) {
             res.status(400).json({ error: error.message });
         }
@@ -138,17 +140,38 @@ export function createTransferController(transferService: TransferService): Rout
      *       400:
      *         description: Error
      */
-    router.patch('/:id/complete', async (req: Request, res: Response) => {
+
+    // Paso 3: Despachar (solo origen, estado PENDING)
+    router.patch('/:id/ship', async (req: Request, res: Response) => {
         try {
             if (!req.user) throw new Error('No autorizado');
             const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-            const transfer = await transferService.completeTransfer(id, req.user.userId);
-            res.json(transfer);
+            const transfer = await transferService.getTransfer(id);
+            if (transfer.fromBranchId !== req.user.branchId) {
+                return res.status(403).json({ error: 'Solo la sucursal de origen puede despachar' });
+            }
+            const result = await transferService.shipTransfer(id, req.user.userId);
+            res.json(result);
         } catch (error: any) {
             res.status(400).json({ error: error.message });
         }
     });
 
+    // Paso 4: Recibir (solo destino, estado IN_TRANSIT)
+    router.patch('/:id/receive', async (req: Request, res: Response) => {
+        try {
+            if (!req.user) throw new Error('No autorizado');
+            const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+            const transfer = await transferService.getTransfer(id);
+            if (transfer.toBranchId !== req.user.branchId) {
+                return res.status(403).json({ error: 'Solo la sucursal de destino puede recibir' });
+            }
+            const result = await transferService.receiveTransfer(id, req.user.userId);
+            res.json(result);
+        } catch (error: any) {
+            res.status(400).json({ error: error.message });
+        }
+    });
     /**
      * @swagger
      * /api/transfers/{id}:
@@ -174,8 +197,37 @@ export function createTransferController(transferService: TransferService): Rout
         try {
             if (!req.user) throw new Error('No autorizado');
             const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-            const transfer = await transferService.cancelTransfer(id);
-            res.json({ message: 'Transferencia cancelada exitosamente', transfer });
+            const transfer = await transferService.getTransfer(id);
+            // Solo origen o admin puede cancelar
+            if (transfer.fromBranchId !== req.user.branchId && req.user.role !== 'ADMIN') {
+                return res.status(403).json({ error: 'Solo la sucursal de origen o un admin puede cancelar' });
+            }
+            const result = await transferService.cancelTransfer(id, req.user.userId);
+            res.json({ message: 'Transferencia cancelada exitosamente', transfer: result });
+        } catch (error: any) {
+            if (error.message.includes('no encontrada')) {
+                res.status(404).json({ error: error.message });
+            } else {
+                res.status(400).json({ error: error.message });
+            }
+        }
+    });
+
+    // Obtener detalle de transferencia por ID (debe ir antes que el listado para evitar conflictos de rutas)
+    router.get('/:id', async (req: Request, res: Response) => {
+        try {
+            if (!req.user) throw new Error('No autorizado');
+            const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+            const transfer = await transferService.getTransfer(id);
+            // Solo origen, destino o admin pueden ver el detalle
+            if (
+                req.user.role !== 'ADMIN' &&
+                transfer.fromBranchId !== req.user.branchId &&
+                transfer.toBranchId !== req.user.branchId
+            ) {
+                return res.status(403).json({ error: 'No autorizado para ver esta transferencia' });
+            }
+            res.json(transfer);
         } catch (error: any) {
             if (error.message.includes('no encontrada')) {
                 res.status(404).json({ error: error.message });
@@ -214,6 +266,5 @@ export function createTransferController(transferService: TransferService): Rout
             res.status(500).json({ error: error.message });
         }
     });
-
     return router;
 }

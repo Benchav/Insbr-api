@@ -53,7 +53,7 @@ async function testAuth() {
     try {
         const result = await makeRequest('POST', '/api/auth/login', {
             username: 'admin',
-            password: 'admin123'
+            password: 'Admin@2026!Insbr'
         });
 
         if (result.status === 200 && result.data.token) {
