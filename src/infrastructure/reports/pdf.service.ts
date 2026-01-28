@@ -259,7 +259,7 @@ export class PdfService {
                         doc.y = y + Math.max(refHeight, 10) + 3;
                     });
                 } else {
-                    doc.font("Helvetica-Italic").fontSize(8).text("No hay abonos registrados", { align: "center" });
+                    doc.font("Helvetica-Oblique").fontSize(8).text("No hay abonos registrados", { align: "center" });
                 }
 
                 doc.moveDown(1);
