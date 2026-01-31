@@ -3,10 +3,11 @@ import { IStockRepository } from '../../core/interfaces/stock.repository.js';
 import { ISupplierRepository } from '../../core/interfaces/supplier.repository.js';
 import { ICreditAccountRepository } from '../../core/interfaces/credit-account.repository.js';
 import { ICashMovementRepository } from '../../core/interfaces/cash-movement.repository.js';
-import { CreatePurchaseDto, Purchase } from '../../core/entities/purchase.entity.js';
+import { CreatePurchaseDto, Purchase, PurchaseItem } from '../../core/entities/purchase.entity.js';
 import { CreateCreditAccountDto } from '../../core/entities/credit-account.entity.js';
 import { CreateCashMovementDto } from '../../core/entities/cash-movement.entity.js';
 import { getNicaraguaNow, addDaysNicaragua } from '../../core/utils/date.utils.js';
+import { UnitConversionService } from './unit-conversion.service.js';
 
 export class PurchaseService {
     constructor(
@@ -14,7 +15,8 @@ export class PurchaseService {
         private stockRepository: IStockRepository,
         private supplierRepository: ISupplierRepository,
         private creditAccountRepository: ICreditAccountRepository,
-        private cashMovementRepository: ICashMovementRepository
+        private cashMovementRepository: ICashMovementRepository,
+        private unitConversionService?: UnitConversionService  // Opcional para retrocompatibilidad
     ) { }
 
     async createPurchase(data: CreatePurchaseDto): Promise<Purchase> {
@@ -32,24 +34,53 @@ export class PurchaseService {
             data.invoiceNumber = `INV-${dateStr}-${randomStr}`;
         }
 
-        // 1.2 Recalcular totales para asegurar integridad
+        // 1.2 Procesar items con conversión de unidades
+        const processedItems: PurchaseItem[] = [];
         let calculatedSubtotal = 0;
-        const validatedItems = data.items.map(item => {
-            // Asegurar que subtotal del item sea correcto (cantidad * costo unitario)
+
+        for (const item of data.items) {
+            let baseQuantity = item.quantity;
+            let unitInfo: { unitId?: string; unitName?: string; unitSymbol?: string } = {};
+
+            // Si tiene unitId, convertir a unidad base
+            if (item.unitId && this.unitConversionService) {
+                try {
+                    baseQuantity = await this.unitConversionService.convertToBase(
+                        item.quantity,
+                        item.unitId,
+                        item.productId
+                    );
+
+                    const unit = await this.unitConversionService['unitConversionRepository'].findById(item.unitId);
+                    if (unit) {
+                        unitInfo = {
+                            unitId: unit.id,
+                            unitName: unit.unitName,
+                            unitSymbol: unit.unitSymbol
+                        };
+                    }
+                } catch (error: any) {
+                    throw new Error(`Error en conversión de unidades para ${item.productName}: ${error.message}`);
+                }
+            }
+
+            // Calcular subtotal del item
             const itemSubtotal = item.quantity * item.unitCost;
             calculatedSubtotal += itemSubtotal;
-            return {
-                ...item,
-                subtotal: itemSubtotal
-            };
-        });
 
-        // Reemplazar items con los validados
-        data.items = validatedItems;
+            processedItems.push({
+                ...item,
+                ...unitInfo,
+                baseQuantity,
+                subtotal: itemSubtotal
+            });
+        }
+
+        // Actualizar datos con items procesados y totales
+        data.items = processedItems;
         data.subtotal = calculatedSubtotal;
 
         // Calcular total final (Subtotal + Impuestos - Descuentos)
-        // Nota: Asumimos que tax y discount vienen validados o son 0 si no se envían
         const tax = data.tax || 0;
         const discount = data.discount || 0;
         data.total = data.subtotal + tax - discount;
@@ -57,19 +88,20 @@ export class PurchaseService {
         // 2. Crear la compra
         const purchase = await this.purchaseRepository.create(data);
 
-        // 3. Actualizar stock (entrada de mercadería)
-        for (const item of data.items) {
+        // 3. Actualizar stock EN UNIDAD BASE (entrada de mercadería)
+        for (const item of processedItems) {
             const stock = await this.stockRepository.findByProductAndBranch(item.productId, data.branchId);
+            const quantityToAdd = item.baseQuantity || item.quantity;
 
             if (stock) {
                 // Actualizar stock existente
-                await this.stockRepository.updateQuantity(stock.id, stock.quantity + item.quantity);
+                await this.stockRepository.updateQuantity(stock.id, stock.quantity + quantityToAdd);
             } else {
                 // Crear nuevo registro de stock
                 await this.stockRepository.create({
                     productId: item.productId,
                     branchId: data.branchId,
-                    quantity: item.quantity,
+                    quantity: quantityToAdd,
                     minStock: 10,
                     maxStock: 1000
                 });

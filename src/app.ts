@@ -16,6 +16,7 @@ import { TransferRepositoryTurso } from './infrastructure/turso/repositories/tra
 import { UserRepositoryTurso } from './infrastructure/turso/repositories/user.repository.turso.js';
 import { BranchRepositoryTurso } from './infrastructure/turso/repositories/branch.repository.turso.js';
 import { CategoryRepositoryTurso } from './infrastructure/turso/repositories/category.repository.turso.js';
+import { UnitConversionRepositoryTurso } from './infrastructure/turso/repositories/unit-conversion.repository.turso.js';
 
 // Services
 import { ProductService } from './application/services/product.service.js';
@@ -29,6 +30,7 @@ import { StockService } from './application/services/stock.service.js';
 import { AuthService } from './application/services/auth.service.js';
 import { CustomerService } from './application/services/customer.service.js';
 import { SupplierService } from './application/services/supplier.service.js';
+import { UnitConversionService } from './application/services/unit-conversion.service.js';
 import { PdfService } from './infrastructure/reports/pdf.service.js';
 import { ExcelService } from './infrastructure/reports/excel.service.js';
 
@@ -44,6 +46,7 @@ import { createCashController } from './api/controllers/cash.controller.js';
 import { createStockController } from './api/controllers/stock.controller.js';
 import { createCustomerController } from './api/controllers/customer.controller.js';
 import { createSupplierController } from './api/controllers/supplier.controller.js';
+import { getProductUnitsController, createUnitConversionController, updateUnitConversionController, deleteUnitConversionController, calculateUnitPriceController, convertQuantityController } from './api/controllers/unit-conversion.controller.js';
 import { authenticate, authorize } from './infrastructure/web/middlewares/auth.middleware.js';
 import { createCategoryController } from './api/controllers/category.controller.js';
 import { createBranchController } from './api/controllers/branch.controller.js';
@@ -67,9 +70,12 @@ export function createApp(): Express {
   const branchRepository = new BranchRepositoryTurso();
   const categoryRepository = new CategoryRepositoryTurso();
   const userRepository = new UserRepositoryTurso();
+  const unitConversionRepository = new UnitConversionRepositoryTurso();
 
   // 2. Inicializar Servicios
   const productService = new ProductService(productRepository);
+  const categoryService = new CategoryService(categoryRepository);
+  const unitConversionService = new UnitConversionService(unitConversionRepository);
 
   const saleService = new SaleService(
     saleRepository,
@@ -77,7 +83,8 @@ export function createApp(): Express {
     customerRepository,
     creditAccountRepository,
     cashMovementRepository,
-    productRepository
+    productRepository,
+    unitConversionService  // Inyectar servicio de conversión
   );
 
   const purchaseService = new PurchaseService(
@@ -85,7 +92,8 @@ export function createApp(): Express {
     stockRepository,
     supplierRepository,
     creditAccountRepository,
-    cashMovementRepository
+    cashMovementRepository,
+    unitConversionService  // Inyectar servicio de conversión
   );
 
   const creditService = new CreditService(
@@ -108,7 +116,6 @@ export function createApp(): Express {
 
   const customerService = new CustomerService(customerRepository);
   const supplierService = new SupplierService(supplierRepository);
-  const categoryService = new CategoryService(categoryRepository);
 
   const authService = new AuthService(userRepository);
   const pdfService = new PdfService();
@@ -171,6 +178,14 @@ export function createApp(): Express {
 
   // Sucursales - Todos pueden ver
   app.use('/api/branches', authenticate, createBranchController(branchRepository));
+
+  // Conversiones de Unidades - Solo ADMIN y GERENTE pueden modificar
+  app.get('/api/products/:productId/units', authenticate, authorize(['ADMIN', 'GERENTE', 'CAJERO']), getProductUnitsController(unitConversionService));
+  app.post('/api/products/:productId/units', authenticate, authorize(['ADMIN', 'GERENTE']), createUnitConversionController(unitConversionService));
+  app.put('/api/units/:unitId', authenticate, authorize(['ADMIN', 'GERENTE']), updateUnitConversionController(unitConversionService));
+  app.delete('/api/units/:unitId', authenticate, authorize(['ADMIN', 'GERENTE']), deleteUnitConversionController(unitConversionService));
+  app.post('/api/units/calculate-price', authenticate, authorize(['ADMIN', 'GERENTE', 'CAJERO']), calculateUnitPriceController(unitConversionService));
+  app.post('/api/units/convert', authenticate, authorize(['ADMIN', 'GERENTE', 'CAJERO']), convertQuantityController(unitConversionService));
 
   // Swagger Documentation
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

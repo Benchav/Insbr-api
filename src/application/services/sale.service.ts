@@ -8,6 +8,7 @@ import { CreateSaleDto, Sale, SaleItem } from '../../core/entities/sale.entity.j
 import { CreateCreditAccountDto } from '../../core/entities/credit-account.entity.js';
 import { CreateCashMovementDto } from '../../core/entities/cash-movement.entity.js';
 import { getNicaraguaNow, addDaysNicaragua, isTodayNicaragua } from '../../core/utils/date.utils.js';
+import { UnitConversionService } from './unit-conversion.service.js';
 
 export class SaleService {
     constructor(
@@ -16,19 +17,57 @@ export class SaleService {
         private customerRepository: ICustomerRepository,
         private creditAccountRepository: ICreditAccountRepository,
         private cashMovementRepository: ICashMovementRepository,
-        private productRepository: IProductRepository
+        private productRepository: IProductRepository,
+        private unitConversionService?: UnitConversionService  // Opcional para retrocompatibilidad
     ) { }
 
     async createSale(data: CreateSaleDto): Promise<Sale> {
-        // 1. Validar stock disponible para cada item
-        for (const item of data.items) {
-            const stock = await this.stockRepository.findByProductAndBranch(item.productId, data.branchId);
+        // 0. Procesar items con conversión de unidades
+        const processedItems: SaleItem[] = [];
 
-            if (!stock || stock.quantity < item.quantity) {
+        for (const item of data.items) {
+            let baseQuantity = item.quantity;
+            let unitInfo: { unitId?: string; unitName?: string; unitSymbol?: string } = {};
+
+            // Si tiene unitId, convertir a unidad base
+            if (item.unitId && this.unitConversionService) {
+                try {
+                    baseQuantity = await this.unitConversionService.convertToBase(
+                        item.quantity,
+                        item.unitId,
+                        item.productId
+                    );
+
+                    const unit = await this.unitConversionService['unitConversionRepository'].findById(item.unitId);
+                    if (unit) {
+                        unitInfo = {
+                            unitId: unit.id,
+                            unitName: unit.unitName,
+                            unitSymbol: unit.unitSymbol
+                        };
+                    }
+                } catch (error: any) {
+                    throw new Error(`Error en conversión de unidades para ${item.productName}: ${error.message}`);
+                }
+            }
+
+            processedItems.push({
+                ...item,
+                ...unitInfo,
+                baseQuantity
+            });
+        }
+
+        // 1. Validar stock disponible para cada item (EN UNIDAD BASE)
+        for (const item of processedItems) {
+            const stock = await this.stockRepository.findByProductAndBranch(item.productId, data.branchId);
+            const requiredQuantity = item.baseQuantity || item.quantity;
+
+            if (!stock || stock.quantity < requiredQuantity) {
                 const product = await this.productRepository.findById(item.productId);
                 throw new Error(
                     `Stock insuficiente para ${product?.name || item.productId}. ` +
-                    `Disponible: ${stock?.quantity || 0}, Requerido: ${item.quantity}`
+                    `Disponible: ${stock?.quantity || 0}, Requerido: ${requiredQuantity}`
                 );
             }
         }
@@ -53,14 +92,18 @@ export class SaleService {
             }
         }
 
-        // 3. Crear la venta
-        const sale = await this.saleRepository.create(data);
+        // 3. Crear la venta con items procesados
+        const sale = await this.saleRepository.create({
+            ...data,
+            items: processedItems
+        });
 
-        // 4. Actualizar stock
-        for (const item of data.items) {
+        // 4. Actualizar stock EN UNIDAD BASE
+        for (const item of processedItems) {
             const stock = await this.stockRepository.findByProductAndBranch(item.productId, data.branchId);
             if (stock) {
-                await this.stockRepository.updateQuantity(stock.id, stock.quantity - item.quantity);
+                const quantityToDeduct = item.baseQuantity || item.quantity;
+                await this.stockRepository.updateQuantity(stock.id, stock.quantity - quantityToDeduct);
             }
         }
 

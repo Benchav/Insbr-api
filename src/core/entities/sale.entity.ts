@@ -6,9 +6,16 @@ export type SaleType = 'CASH' | 'CREDIT';
 export interface SaleItem {
     productId: string;
     productName: string;
-    quantity: number;
-    unitPrice: number; // En centavos
-    subtotal: number;  // En centavos
+    quantity: number;           // Cantidad en la unidad seleccionada
+
+    // Conversión de unidades (opcional)
+    unitId?: string;            // ID de la unidad usada
+    unitName?: string;          // Nombre de la unidad (ej: "Quintal")
+    unitSymbol?: string;        // Símbolo (ej: "qq")
+    baseQuantity?: number;      // Cantidad convertida a unidad base
+
+    unitPrice: number;          // Precio por unidad seleccionada (en centavos)
+    subtotal: number;           // En centavos
 }
 
 export interface Sale {
