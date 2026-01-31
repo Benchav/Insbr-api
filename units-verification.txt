@@ -1,0 +1,158 @@
+=== VERIFICACIÓN DE UNIDADES CREADAS ===
+
+
+📦 Aceite Desmoldante Spray
+   ID: PROD-1769566978745-ycapjs
+   Precio Menudeo: C$ 185.00
+   Precio Mayoreo: C$ 180.00
+
+   Unidades (2):
+   ├─ Unidad (u)
+   │  Factor: 1
+   │  Tipo: BASE
+   │  Venta: RETAIL
+   │  Precio Menudeo: C$ 185.00
+   │
+   ├─ Caja (cja)
+   │  Factor: 12
+   │  Tipo: PURCHASE
+   │  Venta: WHOLESALE
+   │  Precio Mayoreo: C$ 2160.00
+   │
+
+📦 Chocolates y Cobertura de Chocolate Semiamargo
+   ID: PROD-1769567094780-nvlkks
+   Precio Menudeo: C$ 230.00
+   Precio Mayoreo: C$ 220.00
+
+   Unidades (2):
+   ├─ Libra (lb)
+   │  Factor: 1
+   │  Tipo: BASE
+   │  Venta: RETAIL
+   │  Precio Menudeo: C$ 230.00
+   │
+   ├─ Caja (cja)
+   │  Factor: 10
+   │  Tipo: PURCHASE
+   │  Venta: WHOLESALE
+   │  Precio Mayoreo: C$ 2200.00
+   │
+
+📦 Cocoa Alcalina 100%
+   ID: PROD-1769567156003-j0yeha
+   Precio Menudeo: C$ 300.00
+   Precio Mayoreo: C$ 290.00
+
+   Unidades (2):
+   ├─ Libra (lb)
+   │  Factor: 1
+   │  Tipo: BASE
+   │  Venta: RETAIL
+   │  Precio Menudeo: C$ 300.00
+   │
+   ├─ Caja (cja)
+   │  Factor: 25
+   │  Tipo: PURCHASE
+   │  Venta: WHOLESALE
+   │  Precio Mayoreo: C$ 7250.00
+   │
+
+📦 Crema Tipo Chantilly (Ambiente)
+   ID: PROD-1769567214575-qkze0o
+   Precio Menudeo: C$ 180.00
+   Precio Mayoreo: C$ 180.00
+
+   Unidades (2):
+   ├─ Litro (L)
+   │  Factor: 1
+   │  Tipo: BASE
+   │  Venta: RETAIL
+   │  Precio Menudeo: C$ 180.00
+   │
+   ├─ Caja (cja)
+   │  Factor: 12
+   │  Tipo: PURCHASE
+   │  Venta: WHOLESALE
+   │  Precio Mayoreo: C$ 2160.00
+   │
+
+📦 Dulce de Leche Repostero
+   ID: PROD-1769567272544-2ooi06
+   Precio Menudeo: C$ 620.00
+   Precio Mayoreo: C$ 620.00
+
+   Unidades (2):
+   ├─ Kilogramo (kg)
+   │  Factor: 1
+   │  Tipo: BASE
+   │  Venta: RETAIL
+   │  Precio Menudeo: C$ 620.00
+   │
+   ├─ Caja (cja)
+   │  Factor: 12
+   │  Tipo: PURCHASE
+   │  Venta: WHOLESALE
+   │  Precio Mayoreo: C$ 7440.00
+   │
+
+📦 Harina de Trigo Suave (Gemina)
+   ID: PROD-1769566609120-k1taxt
+   Precio Menudeo: C$ 1200.00
+   Precio Mayoreo: C$ 1000.00
+
+   Unidades (2):
+   ├─ Libra (lb)
+   │  Factor: 1
+   │  Tipo: BASE
+   │  Venta: RETAIL
+   │  Precio Menudeo: C$ 12.00
+   │
+   ├─ Quintal (qq)
+   │  Factor: 100
+   │  Tipo: PURCHASE
+   │  Venta: WHOLESALE
+   │  Precio Mayoreo: C$ 100000.00
+   │
+
+📦 Margarina Industrial (Caja)
+   ID: PROD-1769566924212-gbk0x
+   Precio Menudeo: C$ 1100.00
+   Precio Mayoreo: C$ 1000.00
+
+   Unidades (2):
+   ├─ Unidad (u)
+   │  Factor: 1
+   │  Tipo: BASE
+   │  Venta: RETAIL
+   │  Precio Menudeo: C$ 45.83
+   │
+   ├─ Caja (cja)
+   │  Factor: 24
+   │  Tipo: PURCHASE
+   │  Venta: WHOLESALE
+   │  Precio Mayoreo: C$ 1000.00
+   │
+
+📦 Polvo de Hornear (Royal)
+   ID: PROD-1769566835808-ojuhdk
+   Precio Menudeo: C$ 240.00
+   Precio Mayoreo: C$ 220.00
+
+   Unidades (2):
+   ├─ Libra (lb)
+   │  Factor: 1
+   │  Tipo: BASE
+   │  Venta: RETAIL
+   │  Precio Menudeo: C$ 240.00
+   │
+   ├─ Caja (cja)
+   │  Factor: 25
+   │  Tipo: PURCHASE
+   │  Venta: WHOLESALE
+   │  Precio Mayoreo: C$ 5500.00
+   │
+
+======================================================================
+
+📊 Total de unidades creadas: 16

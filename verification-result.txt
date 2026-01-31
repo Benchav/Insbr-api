@@ -1,0 +1,27 @@
+=== VERIFICACIÓN RÁPIDA ===
+Tabla unit_conversions: EXISTE ✅
+Unidades registradas: 0
+
+Columnas de unit_conversions:
+  - id (TEXT)
+  - product_id (TEXT)
+  - unit_name (TEXT)
+  - unit_symbol (TEXT)
+  - conversion_factor (REAL)
+  - unit_type (TEXT)
+  - retail_price (INTEGER)
+  - wholesale_price (INTEGER)
+  - sales_type (TEXT)
+  - is_active (INTEGER)
+  - created_at (TEXT)
+
+Ventas totales: 7
+Productos totales: 8
+Registros de stock: 5
+
+Tabla sale_items tiene columnas de unidades: NO (normal)
+
+=== CONCLUSIÓN ===
+✅ Sistema de unidades configurado correctamente
+✅ Datos existentes NO se verán afectados
+✅ Sistema 100% retrocompatible

@@ -1,0 +1,119 @@
+=== ANÁLISIS DE PRODUCTOS Y CATEGORÍAS ===
+
+📁 CATEGORÍAS ENCONTRADAS: 10
+──────────────────────────────────────────────────────────────────────
+
+
+📂 Categoría: Azúcar y Endulzantes
+   ID: CAT-1769565408460-ep0p0c
+   Descripción: Azúcar estándar, azúcar refinada, azúcar glass (impalpable), glucosa, azúcar mascabado, isomalt.
+
+   (Sin productos)
+
+
+📂 Categoría: Chocolates y Cacaos
+   ID: CAT-1769565432764-5cy5ki
+   Descripción: Coberturas (semi-amarga, blanca, leche), cocoa en polvo (alcalina/natural), chispas horneables, ganache.
+
+   (Sin productos)
+
+
+📂 Categoría: Decoración Comestible
+   ID: CAT-1769565467516-0je2wl
+   Descripción: Granillo (sprinkles), perlas, fondant, obleas, impresiones comestibles, matizadores.
+
+   (Sin productos)
+
+
+📂 Categoría: Grasas y Aceites
+   ID: CAT-1769565394729-v12m6
+   Descripción: Mantequilla (con/sin sal), margarina (danesa, feité, multiusos), manteca vegetal, aceite en spray.
+
+   (Sin productos)
+
+
+📂 Categoría: Harinas y Féculas
+   ID: CAT-1769565386692-cpqfch
+   Descripción: Harina de trigo (fuerza, media fuerza), fécula de maíz (maicena), harina de almendra, pre-mezclas.
+
+   (Sin productos)
+
+
+📂 Categoría: Lácteos y Cremas
+   ID: CAT-1769565419081-ivzt5
+   Descripción: Leche entera, crema para batir (animal o vegetal/Chantilly), queso crema, leche condensada, leche evaporada.
+
+   (Sin productos)
+
+
+📂 Categoría: Papeles y Capacillos
+   ID: CAT-1769565608968-snfc2h
+   Descripción: Capacillos (pirotines) para cupcakes, papel estrella/encerado, papel film, mangas pasteleras desechables.
+
+   (Sin productos)
+
+
+📂 Categoría: Rellenos y Frutas
+   ID: CAT-1769565454986-etivyr
+   Descripción: Mermeladas horneables, dulce de leche/cajeta, ate de fruta, fruta en almíbar, rellenos frutales estabilizados.
+
+   (Sin productos)
+
+
+📂 Categoría: Saborizantes y Aditivos
+   ID: CAT-1769565443800-4pkcc
+   Descripción: Esencias (vainilla, naranja), colorantes en gel/polvo, polvo para hornear, levadura (fresca/seca), conservadores.
+
+   (Sin productos)
+
+
+📂 Categoría: Utensilios y Moldes
+   ID: CAT-1769565620077-bhglk9
+   Descripción: Moldes de aluminio/silicón, cortadores, duyas, espátulas, bases giratorias.
+
+   (Sin productos)
+
+
+📂 SIN CATEGORÍA
+
+   ├─ Aceite Desmoldante Spray
+   │  ID: PROD-1769566978745-ycapjs
+   │  SKU: GRA-022
+   │
+   ├─ Chocolates y Cobertura de Chocolate Semiamargo
+   │  ID: PROD-1769567094780-nvlkks
+   │  SKU: CHO-005
+   │
+   ├─ Cocoa Alcalina 100%
+   │  ID: PROD-1769567156003-j0yeha
+   │  SKU: CHO-009
+   │
+   ├─ Crema Tipo Chantilly (Ambiente)
+   │  ID: PROD-1769567214575-qkze0o
+   │  SKU: LAC-002
+   │
+   ├─ Dulce de Leche Repostero
+   │  ID: PROD-1769567272544-2ooi06
+   │  SKU: LAC-015
+   │
+   ├─ Harina de Trigo Suave (Gemina)
+   │  ID: PROD-1769566609120-k1taxt
+   │  SKU: HAR-001
+   │
+   ├─ Margarina Industrial (Caja)
+   │  ID: PROD-1769566924212-gbk0x
+   │  SKU: GRA-010
+   │
+   ├─ Polvo de Hornear (Royal)
+   │  ID: PROD-1769566835808-ojuhdk
+   │  SKU: HAR-015
+   │
+
+======================================================================
+
+📊 RESUMEN
+
+Total de categorías: 10
+Total de productos: 8
+Productos con unidades: 0
+Productos sin unidades: 8
