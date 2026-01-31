@@ -395,54 +395,71 @@ export class PdfService {
     }
 
     /**
-     * Dibuja los items del ticket con mejor formato
+     * Dibuja los items del ticket con mejor formato usando posicionamiento absoluto
      */
     private drawTicketItems(doc: PDFKit.PDFDocument, items: SaleItem[]): void {
         const margin = 10;
         const pageWidth = 226;
         const contentWidth = pageWidth - 2 * margin;
 
-        // Encabezado de items
-        doc.font("Helvetica-Bold")
-            .fontSize(8)
-            .text("CANT  DESCRIPCIÓN", margin, doc.y, { width: contentWidth * 0.7, continued: true })
-            .text("IMPORTE", { width: contentWidth * 0.3, align: "right" });
+        // Definir columnas con posicionamiento absoluto
+        const xQty = margin;           // Posición X de cantidad
+        const wQty = 25;               // Ancho de cantidad
 
-        doc.moveDown(0.2);
+        const xDesc = margin + wQty;   // Posición X de descripción
+        const wDesc = 120;             // Ancho de descripción
+
+        const xTotal = margin + wQty + wDesc; // Posición X de total
+        const wTotal = contentWidth - wQty - wDesc; // Ancho de total
+
+        // Encabezado de items
+        let y = doc.y;
+        doc.font("Helvetica-Bold").fontSize(8);
+        doc.text("CANT", xQty, y, { width: wQty, align: 'left' });
+        doc.text("DESCRIPCIÓN", xDesc, y, { width: wDesc, align: 'left' });
+        doc.text("IMPORTE", xTotal, y, { width: wTotal, align: 'right' });
+
+        doc.y = y + 10;
         this.drawThinLine(doc);
         doc.moveDown(0.3);
 
         // Iterar sobre los items
         for (const item of items) {
-            doc.font("Helvetica").fontSize(9);
+            y = doc.y;
 
             // Nombre del producto (truncar si es muy largo)
             let productName = item.productName;
-            if (productName.length > 26) {
-                productName = productName.substring(0, 23) + "...";
+            if (productName.length > 24) {
+                productName = productName.substring(0, 21) + "...";
             }
 
-            // Cantidad y nombre
+            // Formatear cantidad y totales
             const qtyText = `${item.quantity}x`;
-            doc.font("Helvetica-Bold")
-                .text(qtyText, margin, doc.y, { width: 20, continued: true });
-
-            doc.font("Helvetica")
-                .text(` ${productName}`, { width: contentWidth - 20 });
-
-            // Precio unitario e importe
             const unitPrice = item.unitPrice / 100;
             const subtotal = item.subtotal / 100;
-
-            const priceText = `    ${formatCurrency(unitPrice)} c/u`;
             const subtotalText = formatCurrency(subtotal);
 
-            doc.fontSize(8)
-                .text(priceText, margin, doc.y, { width: contentWidth * 0.65, continued: true })
-                .font("Helvetica-Bold")
-                .text(subtotalText, { width: contentWidth * 0.35, align: "right" });
+            // 1. Dibujar cantidad (izquierda)
+            doc.font("Helvetica-Bold").fontSize(9);
+            doc.text(qtyText, xQty, y, { width: wQty, align: 'left' });
 
-            doc.moveDown(0.3);
+            // 2. Dibujar descripción (centro)
+            doc.font("Helvetica").fontSize(9);
+            doc.text(productName, xDesc, y, { width: wDesc, align: 'left' });
+
+            // 3. Dibujar total (derecha)
+            doc.font("Helvetica-Bold").fontSize(9);
+            doc.text(subtotalText, xTotal, y, { width: wTotal, align: 'right' });
+
+            // Avanzar Y después de la primera línea
+            doc.y = y + 12;
+
+            // Precio unitario en segunda línea (más pequeño)
+            const priceText = `${formatCurrency(unitPrice)} c/u`;
+            doc.font("Helvetica").fontSize(8);
+            doc.text(priceText, xDesc, doc.y, { width: wDesc, align: 'left' });
+
+            doc.moveDown(0.5);
         }
 
         // Línea separadora
