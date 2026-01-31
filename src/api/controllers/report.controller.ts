@@ -105,9 +105,35 @@ export function createReportController(
                 }
             }
 
+            // Enriquecer items con nombres reales de productos si son genéricos o están vacíos
+            const enrichedItems = await Promise.all(
+                sale.items.map(async (item) => {
+                    // Si el nombre es genérico o vacío, buscar el nombre real
+                    if (!item.productName || item.productName === 'Producto' || item.productName.trim() === '') {
+                        try {
+                            const product = await productService.getProduct(item.productId);
+                            return {
+                                ...item,
+                                productName: product.name
+                            };
+                        } catch (error) {
+                            console.log(`No se pudo obtener nombre del producto ${item.productId}`);
+                            return item;
+                        }
+                    }
+                    return item;
+                })
+            );
+
+            // Crear copia de la venta con items enriquecidos
+            const enrichedSale = {
+                ...sale,
+                items: enrichedItems
+            };
+
             // Generar el PDF con toda la información
             const pdfBuffer = await pdfService.generateTicket(
-                sale,
+                enrichedSale,
                 branch,
                 cashier || undefined,
                 customer || undefined
