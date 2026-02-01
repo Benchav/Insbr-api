@@ -98,8 +98,8 @@
 
 📦 Harina de Trigo Suave (Gemina)
    ID: PROD-1769566609120-k1taxt
-   Precio Menudeo: C$ 1200.00
-   Precio Mayoreo: C$ 1000.00
+   Precio Menudeo: C$ 12.00
+   Precio Mayoreo: C$ 12.00
 
    Unidades (2):
    ├─ Libra (lb)
@@ -117,8 +117,8 @@
 
 📦 Margarina Industrial (Caja)
    ID: PROD-1769566924212-gbk0x
-   Precio Menudeo: C$ 1100.00
-   Precio Mayoreo: C$ 1000.00
+   Precio Menudeo: C$ 45.83
+   Precio Mayoreo: C$ 45.83
 
    Unidades (2):
    ├─ Unidad (u)

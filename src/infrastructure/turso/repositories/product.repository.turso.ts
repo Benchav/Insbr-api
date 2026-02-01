@@ -108,6 +108,10 @@ export class ProductRepositoryTurso implements IProductRepository {
             updates.push('description = ?');
             args.push(data.description);
         }
+        if (data.sku !== undefined) {
+            updates.push('sku = ?');
+            args.push(data.sku);
+        }
         if (data.category !== undefined) {
             updates.push('category = ?');
             args.push(data.category);
