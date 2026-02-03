@@ -13,14 +13,14 @@ async function startServer() {
     const app = createApp();
 
     app.listen(PORT, () => {
-      console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
-      console.log(`📚 Documentación Swagger: http://localhost:${PORT}/api-docs`);
-      console.log(`💚 Health check: http://localhost:${PORT}/health`);
+      console.log(`Servidor corriendo en http://localhost:${PORT}`);
+      console.log(`Documentación Swagger: http://localhost:${PORT}/api-docs`);
+      console.log(`Health check: http://localhost:${PORT}/health`);
       console.log('');
-      console.log('✨ Sistema listo para recibir peticiones');
+      console.log('Sistema listo para recibir peticiones');
     });
   } catch (error) {
-    console.error('❌ Error al iniciar el servidor:', error);
+    console.error('Error al iniciar el servidor:', error);
     process.exit(1);
   }
 }
