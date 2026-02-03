@@ -72,7 +72,7 @@ export class SaleService {
             }
         }
 
-        // 2. Si es venta a crédito, validar límite de crédito del cliente
+        // 2. Si es venta a crédito, validar que tenga cliente
         if (data.type === 'CREDIT') {
             if (!data.customerId) {
                 throw new Error('Se requiere un cliente para ventas a crédito');
@@ -83,13 +83,9 @@ export class SaleService {
                 throw new Error('Cliente no encontrado');
             }
 
-            const availableCredit = customer.creditLimit - customer.currentDebt;
-            if (data.total > availableCredit) {
-                throw new Error(
-                    `Límite de crédito excedido. Disponible: C$ ${(availableCredit / 100).toFixed(2)}, ` +
-                    `Requerido: C$ ${(data.total / 100).toFixed(2)}`
-                );
-            }
+            // NOTA: No se valida límite de crédito
+            // Los clientes pueden comprar cualquier cantidad y pagar según términos de la empresa
+            // El campo creditLimit se mantiene en la BD para posible uso futuro
         }
 
         // 3. Crear la venta con items procesados
