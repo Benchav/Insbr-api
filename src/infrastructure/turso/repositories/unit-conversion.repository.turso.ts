@@ -125,6 +125,28 @@ export class UnitConversionRepositoryTurso implements IUnitConversionRepository 
         });
     }
 
+    async findByProductAndName(productId: string, unitName: string): Promise<UnitConversion[]> {
+        const result = await tursoClient.execute({
+            sql: 'SELECT * FROM unit_conversions WHERE product_id = ? AND unit_name = ? AND is_active = 1',
+            args: [productId, unitName]
+        });
+
+        return result.rows.map(row => this.mapToEntity(row));
+    }
+
+    async findDuplicates(productId: string, unitName: string, conversionFactor: number): Promise<UnitConversion[]> {
+        const result = await tursoClient.execute({
+            sql: `SELECT * FROM unit_conversions 
+                  WHERE product_id = ? 
+                  AND unit_name = ? 
+                  AND conversion_factor = ? 
+                  AND is_active = 1`,
+            args: [productId, unitName, conversionFactor]
+        });
+
+        return result.rows.map(row => this.mapToEntity(row));
+    }
+
     async findAll(): Promise<UnitConversion[]> {
         const result = await tursoClient.execute('SELECT * FROM unit_conversions WHERE is_active = 1');
         return result.rows.map(row => this.mapToEntity(row));

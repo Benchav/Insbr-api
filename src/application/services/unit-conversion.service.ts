@@ -144,6 +144,29 @@ export class UnitConversionService {
             }
         }
 
+        // Verificar que no exista un duplicado exacto (mismo producto, nombre y factor)
+        const duplicates = await this.unitConversionRepository.findDuplicates(
+            data.productId,
+            data.unitName,
+            data.conversionFactor
+        );
+
+        if (duplicates.length > 0) {
+            throw new Error(
+                `Ya existe una unidad "${data.unitName}" con factor ${data.conversionFactor} para este producto`
+            );
+        }
+
+        // Validar que el nombre sea descriptivo para unidades de empaque
+        const packagingUnits = ['Caja', 'Paquete', 'Bulto', 'Saco'];
+        if (packagingUnits.includes(data.unitName) && data.unitType === 'PURCHASE') {
+            // Sugerir nombre más descriptivo (solo advertencia, no error)
+            console.warn(
+                `⚠️  Advertencia: Se recomienda usar un nombre más descriptivo para "${data.unitName}". ` +
+                `Ejemplo: "${data.unitName} (${data.conversionFactor} unidades)" o "${data.unitName} x${data.conversionFactor}"`
+            );
+        }
+
         return this.unitConversionRepository.create(data);
     }
 
@@ -154,9 +177,56 @@ export class UnitConversionService {
      * @returns Unidad de conversión actualizada
      */
     async updateUnitConversion(id: string, data: UpdateUnitConversionDto): Promise<UnitConversion> {
+        // Obtener la unidad actual
+        const currentUnit = await this.unitConversionRepository.findById(id);
+
+        if (!currentUnit) {
+            throw new Error('Unidad de conversión no encontrada');
+        }
+
         // Validar factor de conversión si se está actualizando
         if (data.conversionFactor !== undefined && data.conversionFactor <= 0) {
             throw new Error('El factor de conversión debe ser mayor que 0');
+        }
+
+        // No permitir cambiar el factor de una unidad BASE
+        if (currentUnit.unitType === 'BASE' && data.conversionFactor !== undefined && data.conversionFactor !== 1) {
+            throw new Error('La unidad base debe mantener factor de conversión = 1');
+        }
+
+        // Si se está cambiando el tipo a BASE, validar
+        if (data.unitType === 'BASE' && currentUnit.unitType !== 'BASE') {
+            const existingBase = await this.getBaseUnit(currentUnit.productId);
+            if (existingBase) {
+                throw new Error('El producto ya tiene una unidad base definida');
+            }
+            // Asegurar que el factor sea 1
+            if (data.conversionFactor === undefined) {
+                data.conversionFactor = 1;
+            } else if (data.conversionFactor !== 1) {
+                throw new Error('La unidad base debe tener factor de conversión = 1');
+            }
+        }
+
+        // Verificar duplicados si se está cambiando nombre o factor
+        if (data.unitName !== undefined || data.conversionFactor !== undefined) {
+            const newName = data.unitName ?? currentUnit.unitName;
+            const newFactor = data.conversionFactor ?? currentUnit.conversionFactor;
+
+            const duplicates = await this.unitConversionRepository.findDuplicates(
+                currentUnit.productId,
+                newName,
+                newFactor
+            );
+
+            // Filtrar la unidad actual de los duplicados
+            const otherDuplicates = duplicates.filter(u => u.id !== id);
+
+            if (otherDuplicates.length > 0) {
+                throw new Error(
+                    `Ya existe otra unidad "${newName}" con factor ${newFactor} para este producto`
+                );
+            }
         }
 
         return this.unitConversionRepository.update(id, data);
