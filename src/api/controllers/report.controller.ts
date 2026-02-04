@@ -7,6 +7,7 @@ import { authorize } from '../../infrastructure/web/middlewares/auth.middleware.
 import { StockService } from '../../application/services/stock.service.js';
 import { ProductService } from '../../application/services/product.service.js';
 import { CustomerService } from '../../application/services/customer.service.js';
+import { getNicaraguaNow, getNicaraguaToday } from '../../core/utils/date.utils.js';
 
 // Interfaz simple para el repositorio de sucursales
 interface IBranchRepository {
@@ -32,6 +33,170 @@ export function createReportController(
     const router = Router();
     // Note: authenticate middleware will be applied at app.ts level
     // Here we only apply authorize for specific roles
+
+    /**
+     * @swagger
+     * /api/reports/dashboard:
+     *   get:
+     *     summary: Obtener estadísticas del dashboard (consolidado o por sucursal)
+     *     tags: [Reports]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: query
+     *         name: branchId
+     *         schema:
+     *           type: string
+     *         description: ID de la sucursal (opcional, omitir o usar 'all' para consolidado)
+     *     responses:
+     *       200:
+     *         description: Estadísticas del dashboard
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 salesTotal:
+     *                   type: integer
+     *                   description: Total de ventas del día en centavos
+     *                 cashBalance:
+     *                   type: integer
+     *                   description: Balance de caja en centavos
+     *                 totalStock:
+     *                   type: integer
+     *                   description: Total de unidades en inventario
+     *                 activeCustomers:
+     *                   type: integer
+     *                   description: Número de clientes activos
+     *                 stockAlerts:
+     *                   type: integer
+     *                   description: Productos bajo stock mínimo
+     *                 branches:
+     *                   type: array
+     *                   description: Detalles por sucursal (solo en modo consolidado)
+     *       401:
+     *         description: No autorizado
+     *       500:
+     *         description: Error al obtener estadísticas
+     */
+    router.get('/dashboard', authorize(['ADMIN', 'GERENTE', 'CAJERO']), async (req: Request, res: Response) => {
+        try {
+            if (!req.user) {
+                return res.status(401).json({ error: 'No autorizado' });
+            }
+
+            const queryBranchId = req.query.branchId as string | undefined;
+
+            // Determinar si es consulta consolidada o por sucursal
+            const isConsolidated = !queryBranchId || queryBranchId === 'all';
+
+            // Obtener todas las sucursales activas
+            const allBranches = await branchRepository.findAll();
+            const activeBranches = allBranches.filter((b: any) => b.isActive);
+
+            // Determinar qué sucursales consultar
+            let branchesToQuery = activeBranches;
+            if (!isConsolidated) {
+                const targetBranch = activeBranches.find((b: any) => b.id === queryBranchId);
+                if (!targetBranch) {
+                    return res.status(404).json({ error: 'Sucursal no encontrada' });
+                }
+                branchesToQuery = [targetBranch];
+            }
+
+            // Calcular inicio y fin del día actual en Nicaragua
+            const startOfDay = getNicaraguaToday();
+            const endOfDay = new Date(startOfDay);
+            endOfDay.setHours(23, 59, 59, 999);
+
+            // Inicializar totales
+            let totalSales = 0;
+            let totalCashBalance = 0;
+            let totalStockUnits = 0;
+            let totalStockAlerts = 0;
+            const branchDetails: any[] = [];
+
+            // Procesar cada sucursal
+            for (const branch of branchesToQuery) {
+                try {
+                    // 1. Ventas del día
+                    const sales = await saleService.listSalesByBranch(branch.id, {
+                        startDate: startOfDay,
+                        endDate: endOfDay
+                    });
+                    const branchSalesTotal = sales
+                        .filter((s: any) => s.status !== 'CANCELLED')
+                        .reduce((sum: number, sale: any) => sum + sale.total, 0);
+
+                    // 2. Balance de caja (ingresos - egresos)
+                    const cashMovements = await cashMovementRepository.findByBranch(branch.id, {
+                        startDate: startOfDay,
+                        endDate: endOfDay
+                    });
+                    const branchCashBalance = cashMovements.reduce((balance: number, movement: any) => {
+                        return movement.type === 'INCOME'
+                            ? balance + movement.amount
+                            : balance - movement.amount;
+                    }, 0);
+
+                    // 3. Total de stock
+                    const branchStockTotal = await stockService.getTotalUnits(branch.id);
+
+                    // 4. Alertas de stock bajo
+                    const stockAlerts = await stockService.getLowStockAlerts(branch.id);
+                    const branchStockAlerts = stockAlerts.length;
+
+                    // Acumular totales
+                    totalSales += branchSalesTotal;
+                    totalCashBalance += branchCashBalance;
+                    totalStockUnits += branchStockTotal;
+                    totalStockAlerts += branchStockAlerts;
+
+                    // Guardar detalles por sucursal (solo si es consolidado)
+                    if (isConsolidated) {
+                        branchDetails.push({
+                            id: branch.id,
+                            name: branch.name,
+                            code: branch.code,
+                            salesTotal: branchSalesTotal,
+                            cashBalance: branchCashBalance,
+                            totalStock: branchStockTotal,
+                            stockAlerts: branchStockAlerts
+                        });
+                    }
+                } catch (branchError: any) {
+                    console.error(`Error procesando sucursal ${branch.name}:`, branchError);
+                    // Continuar con las demás sucursales en caso de error
+                }
+            }
+
+            // 5. Clientes activos (global, no por sucursal)
+            const allCustomers = await customerService.listCustomers({ isActive: true });
+            const activeCustomersCount = allCustomers.length;
+
+            // Construir respuesta
+            const response: any = {
+                salesTotal: totalSales,
+                cashBalance: totalCashBalance,
+                totalStock: totalStockUnits,
+                activeCustomers: activeCustomersCount,
+                stockAlerts: totalStockAlerts
+            };
+
+            // Agregar detalles por sucursal solo si es consolidado
+            if (isConsolidated && branchDetails.length > 0) {
+                response.branches = branchDetails;
+            }
+
+            res.json(response);
+
+        } catch (error: any) {
+            console.error('Error generando estadísticas del dashboard:', error);
+            res.status(500).json({
+                error: error.message || 'Error al obtener estadísticas del dashboard'
+            });
+        }
+    });
 
     /**
      * @swagger
